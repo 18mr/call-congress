@@ -17,3 +17,20 @@
   msg_final_thanks: Thank you!
   msg_press_1: You pressed 1 at the prompt to do something assuming a callback URL was defined.
   msg_opt_out: Sorry to see you go.
+
+- id: end-police-violence
+  numbers:
+    - 720-627-6889
+  target_house: true
+  target_senate: true
+  msg_intro: http://www.call2endpoliceviolence.org/audio/msg_intro.mp3
+  msg_intro_confirm: http://www.call2endpoliceviolence.org/audio/msg_intro_confirm.mp3
+  msg_ask_zip: >
+    Please enter your zip code so we can lookup your representatives.
+  msg_invalid_zip: "Sorry, that zip code didn't work. Please try again."
+  msg_call_block_intro: http://www.call2endpoliceviolence.org/audio/msg_call_block_intro.mp3
+  msg_rep_intro: "Now connecting you to {{name}}."
+  msg_between_thanks: http://www.call2endpoliceviolence.org/audio/msg_between_thanks.mp3
+  msg_final_thanks: http://www.call2endpoliceviolence.org/audio/msg_final_thanks.mp3
+  call_human_check: false
+
