@@ -21,6 +21,9 @@
 - id: end-police-violence
   numbers:
     - 720-627-6889
+    - 618-494-5809
+    - 201-335-8924
+    - 831-706-4810
   target_house: true
   target_senate: true
   msg_intro: http://www.call2endpoliceviolence.org/audio/msg_intro.mp3
