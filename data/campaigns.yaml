@@ -26,7 +26,9 @@
     - B001251 # Rep George Butterfield, 202-225-3101
     - R000515 # Rep Bobby Rush, 202-225-4372
     - C001049 # Rep Wm. Clay, 202-225-2406
-    - M001137 # Rep Gregory Meeks, 202-225-3461
+    - C000984 # Rep Elijah Cummings, 202-225-4741
+    - C001067 # Rep Yvette Clarke, 202-225-6231
+    - D000096 # Rep Danny Davis, 202-225-5006
   randomize_order: true
   target_house: false
   target_senate: false
