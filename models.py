@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 
 from database import db
+from sqlalchemy import distinct
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -76,7 +77,7 @@ def log_call(params, campaign, request):
 
 def call_count(campaign_id):
     try:
-        return (db.session.query(db.func.Count(Call.id))
+        return (db.session.query(db.func.Count(distinct(Call.id)))
                 .filter(Call.campaign_id == campaign_id).all())[0][0]
     except SQLAlchemyError:
         logging.error('Failed to get call_count:', exc_info=True)
@@ -104,7 +105,7 @@ def aggregate_stats(campaign_id):
                 .filter(Call.user_id != '54333e5bbb0ef146f3523a7b9b96081631d411255d59abdf7bdc59aeab087877')
                 .group_by(Call.zipcode).all())
 
-    reps = (db.session.query(Call.member_id, db.func.Count(Call.member_id))
+    reps = (db.session.query(Call.member_id, db.func.Count(distinct(Call.user_id)))
             .filter(Call.campaign_id == campaign_id)
             .filter(Call.user_id != '54333e5bbb0ef146f3523a7b9b96081631d411255d59abdf7bdc59aeab087877')
             .group_by(Call.member_id).all())
