@@ -19,7 +19,7 @@
   msg_opt_out: Sorry to see you go.
 - id: cca-ally-call
   numbers:
-    - 612-255-1834
+    - 510-230-2893
   target_house: true
   target_senate: true
   target_house_first: false
