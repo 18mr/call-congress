@@ -15,9 +15,7 @@
   msg_final_thanks: Thank you!
   msg_press_1: You pressed 1 at the prompt to do something assuming a callback URL was defined.
   msg_opt_out: Sorry to see you go.
-- id: cca-adoptee-call
+- id: cca-call-congress
   numbers:
     - 612-255-1834
-- id: cca-ally-call
-  numbers:
     - 510-230-2893
