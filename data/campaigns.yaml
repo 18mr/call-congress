@@ -19,10 +19,10 @@
   numbers:
     - 612-255-1834
     - 510-230-2893
-  msg_intro: http://keepushome.org/static/audio/cca/msg_intro.mp3
-  msg_ask_zip: http://keepushome.org/static/audio/cca/msg_ask_zip.mp3
-  msg_call_block_intro: http://keepushome.org/static/audio/cca/msg_call_block_intro.mp3
-  msg_between_thanks: http://keepushome.org/static/audio/cca/msg_between_thanks.mp3
-  msg_final_thanks: http://keepushome.org/static/audio/cca/msg_final_thanks.mp3
+  msg_intro: http://action.18mr.org/static/audio/cca/msg_intro.mp3
+  msg_ask_zip: http://action.18mr.org/static/audio/cca/msg_ask_zip.mp3
+  msg_call_block_intro: http://action.18mr.org/static/audio/cca/msg_call_block_intro.mp3
+  msg_between_thanks: http://action.18mr.org/static/audio/cca/msg_between_thanks.mp3
+  msg_final_thanks: http://action.18mr.org/static/audio/cca/msg_final_thanks.mp3
   msg_rep_intro: We're now connecting you to {{name}}. Press star when you're done.
   msg_invalid_zip: Sorry, that zip code didn't work. Please try again.
