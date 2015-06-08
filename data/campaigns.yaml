@@ -27,3 +27,6 @@
   msg_rep_intro: We're now connecting you to {{name}}. Press star when you're done.
   msg_invalid_zip: Sorry, that zip code didn't work. Please try again.
 - id: nanhui-ice
+  numbers:
+    - 415-212-9636
+	- 916-245-8290
