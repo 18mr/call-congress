@@ -15,6 +15,7 @@
   msg_final_thanks: Thank you!
   msg_press_1: You pressed 1 at the prompt to do something assuming a callback URL was defined.
   msg_opt_out: Sorry to see you go.
+  
 - id: cca-call-congress
   numbers:
     - 612-255-1834
@@ -26,7 +27,11 @@
   msg_final_thanks: http://action.18mr.org/static/audio/cca/msg_final_thanks.mp3
   msg_rep_intro: We're now connecting you to {{name}}. Press star when you're done.
   msg_invalid_zip: Sorry, that zip code didn't work. Please try again.
+
 - id: nanhui-ice
+  numbers:
+    - 916-245-8290
+	- 415-212-9636
   msg_intro: http://action.18mr.org/static/audio/nanhui-ice/msg_intro.mp3
   msg_between_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_between_thanks.mp3
   msg_final_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_final_thanks.mp3
