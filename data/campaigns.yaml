@@ -27,6 +27,8 @@
   msg_rep_intro: We're now connecting you to {{name}}. Press star when you're done.
   msg_invalid_zip: Sorry, that zip code didn't work. Please try again.
 - id: nanhui-ice
-  numbers:
-    - 415-212-9636
-	- 916-245-8290
+  msg_intro: http://action.18mr.org/static/audio/nanhui-ice/msg_intro.mp3
+  msg_between_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_between_thanks.mp3
+  msg_final_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_final_thanks.mp3
+  msg_rep_intro: We're now connecting you. Press star when you're done.
+  overrides_google_spreadsheet_id: 1vuLUWzJ1ZTFGIlSTqbjr0aalDRQWN63saN6lAxO31HE
