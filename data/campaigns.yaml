@@ -34,6 +34,7 @@
     - 415-212-9636
   target_house: false
   target_senate: false
+  repIds: 
   msg_intro: http://action.18mr.org/static/audio/nanhui-ice/msg_intro.mp3
   msg_between_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_between_thanks.mp3
   msg_final_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_final_thanks.mp3
