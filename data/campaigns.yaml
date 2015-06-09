@@ -5,6 +5,7 @@
   msg_intro: Hi. Welcome to call congress.
   msg_intro_confirm: Press star to start.
   msg_ask_zip: >
+    please enter your zip code.
   msg_invalid_zip: Sorry, that zip code didn't work. Please try again.
   msg_call_block_intro: >
     {{#many_reps}}We'll now connect you to {{n_reps}} representatives. Press
