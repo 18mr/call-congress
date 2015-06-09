@@ -32,12 +32,12 @@
   numbers:
     - 916-245-8290
     - 415-212-9636
+  target_house: false
+  target_senate: false
   msg_intro: http://action.18mr.org/static/audio/nanhui-ice/msg_intro.mp3
   msg_between_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_between_thanks.mp3
   msg_final_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_final_thanks.mp3
   msg_rep_intro: We're now connecting you. Press star when you're done.
-  target_house: false
-  target_senate: false
   number_of_extra_first_calls: 2
   extra_first_calls:
     - name: Sarah Saldana
