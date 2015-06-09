@@ -43,9 +43,9 @@
   msg_rep_intro: We're now connecting you to {{name}}, {{office}}. Press star when you're done.
   number_of_extra_first_calls: 2
   extra_first_calls:
-    - name: Sarah Saldana
-      number: 888-351-4024
-      office: Director of Immigration and Customs Enforcement
     - name: Craig Meyer
       number: 415-844-5512
       office: ICE Field Director
+    - name: Sarah Saldana
+      number: 888-351-4024
+      office: Director of Immigration and Customs Enforcement
