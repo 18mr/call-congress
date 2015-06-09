@@ -35,10 +35,12 @@
   target_house: false
   target_senate: false
   repIds: [ ]
+  randomize_order: false
   msg_intro: http://action.18mr.org/static/audio/nanhui-ice/msg_intro.mp3
   msg_between_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_between_thanks.mp3
   msg_final_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_final_thanks.mp3
-  msg_rep_intro: We're now connecting you. Press star when you're done.
+  msg_call_block_intro: We will connect you to two offices. Press star for next office.
+  msg_rep_intro: We're now connecting you to {{name}}, {{office}}. Press star when you're done.
   number_of_extra_first_calls: 2
   extra_first_calls:
     - name: Sarah Saldana
