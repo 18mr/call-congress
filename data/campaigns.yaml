@@ -15,7 +15,7 @@
   msg_final_thanks: Thank you!
   msg_press_1: You pressed 1 at the prompt to do something assuming a callback URL was defined.
   msg_opt_out: Sorry to see you go.
-  
+
 - id: cca-call-congress
   numbers:
     - 612-255-1834
@@ -65,7 +65,7 @@
 	- name: Lynette Gibson McElhaney
       number: 510-238-7032
       office: Oakland City Council District 3
-    extra_last_calls:
+  extra_last_calls:
     - name: Dan Kalb
       number: 510-238-7001
       office: Oakland City Council District 1
