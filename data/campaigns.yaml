@@ -49,3 +49,46 @@
     - name: Craig Meyer
       number: 415-844-5690
       office: ICE Field Director
+
+- id: oak-e12th
+  numbers: 
+    - 510-447-1508
+    - 510-447-1505
+  target_house: false
+  target_senate: false
+  repIds: [ ]
+  randomize_order: false
+  extra_first_calls:
+    - name: Abel Guillen
+	  number: 510-238-7002
+	  office: Oakland City Council District 2
+	- name: Lynette Gibson McElhaney
+	  number: 510-238-7032
+	  office: Oakland City Council District 3
+	extra_last_calls:
+	- name: Dan Kalb
+	  number: 510-238-7001
+	  office: Oakland City Council District 1
+	- name: Noel Gallo
+	  number: 510-238-7005
+	  office: Oakland City Council District 5
+	- name: Desley Brooks
+	  number: 510-238-7006
+	  office: Oakland City Council District 6
+	- name: Annie Campbell Washington
+	  number: 510-238-7042
+	  office: Oakland City Council District 4
+	- name: Sabrina Landreth
+	  number: 510-238-3391
+	  office: City Administrator
+	- name: Libby Schaaf
+	  number: 510-238-3141
+	  office: Mayor of Oakland
+	- name: Tomiquia Moss
+	  number: 510-238-7168
+	  office: Mayor's Chief of Staff
+  msg_intro: https://catachresis.github.io/savee12th/static/audio/720/msg_intro.wav
+  msg_between_thanks: https://catachresis.github.io/savee12th/static/audio/720/msg_between_thanks.wav
+  msg_final_thanks: https://catachresis.github.io/savee12th/static/audio/720/final_thanks.wav
+  msg_call_block_intro: https://catachresis.github.io/savee12th/static/audio/720/msg_call_block_intro.wav
+  msg_rep_intro: We're now connecting you to {{name}}, {{office}}. Press star when you're done.
