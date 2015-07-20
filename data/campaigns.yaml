@@ -62,7 +62,7 @@
     - name: Abel Guillen
       number: 510-238-7002
       office: Oakland City Council District 2
-	- name: Lynette Gibson McElhaney
+    - name: Lynette Gibson McElhaney
       number: 510-238-7032
       office: Oakland City Council District 3
   extra_last_calls:
@@ -87,4 +87,8 @@
     - name: Tomiquia Moss
       number: 510-238-7168
       office: Mayor's Chief of Staff
+  msg_intro: https://catachresis.github.io/savee12th/static/audio/720/msg_intro.wav
+  msg_between_thanks: https://catachresis.github.io/savee12th/static/audio/720/msg_between_thanks.wav
+  msg_final_thanks: https://catachresis.github.io/savee12th/static/audio/720/final_thanks.wav
+  msg_call_block_intro: https://catachresis.github.io/savee12th/static/audio/720/msg_call_block_intro.wav
   msg_rep_intro: We're now connecting you to {{name}}, {{office}}. Press star when you're done.
