@@ -92,3 +92,16 @@
   msg_final_thanks: https://catachresis.github.io/savee12th/static/audio/720/final_thanks.mp3
   msg_call_block_intro: https://catachresis.github.io/savee12th/static/audio/720/msg_call_block_intro.mp3
   msg_rep_intro: We're now connecting you to {{name}}, {{office}}. Press star when you're done.
+  
+- id: aca-2015
+  numbers:
+    - 202-791-4367
+	- 202-791-4403
+  target_house: false
+  target_senate: true
+  msg_intro: http://action.18mr.org/static/audio/aca/msg_intro.mp3
+  msg_between_thanks: http://action.18mr.org/static/audio/aca/msg_between_thanks.mp3
+  msg_final_thanks: http://action.18mr.org/static/audio/aca/msg_final_thanks.mp3
+  msg_call_block_intro: http://action.18mr.org/static/audio/aca/msg_call_block_intro.mp3
+  msg_invalid_zip: http://action.18mr.org/static/audio/aca/msg_invalid_zip.mp3
+  msg_ask_zip: http://action.18mr.org/static/audio/aca/msg_ask_zip.mp3
