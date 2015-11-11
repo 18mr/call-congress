@@ -96,7 +96,7 @@
 - id: aca-2015
   numbers:
     - 202-791-4367
-	- 202-791-4403
+    - 202-791-4403
   target_house: false
   target_senate: true
   msg_intro: http://action.18mr.org/static/audio/aca/msg_intro.mp3
