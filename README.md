@@ -23,7 +23,6 @@ The server lets callers:
 Campaign Configuration
 ----------------------
 
-=======
 1) Create a campaign with one of several types, to determine how callers are matched to targets.
 
 * _Executive_ connects callers to the Whitehouse Switchboard, or to a specific office if known
