@@ -1,6 +1,14 @@
+.pid
+src
 venv
 *.pyc
 *.db
 .env
 src
 throttle.py
+gunicorn.log
+call_server/static/bower_components
+call_server/static/.webassets-cache
+*.swp
+/docker-compose.yml
+instance/uploads
