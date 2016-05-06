@@ -26,12 +26,13 @@ For production, you will also need to set:
 * CALLPOWER_CONFIG='call_server.config:ProductionConfig', so that manager.py knows to use a real database for migrations
 * DATABASE_URI, a sqlalchemy [connection string](https://pythonhosted.org/Flask-SQLAlchemy/config.html#connection-uri-format) for a postgres or mysql database addresses
 * REDIS_URL, a URI for the Redis server
-* APPLICATION_ROOT to the path where the application will live. If you are using a whole domain or subdomain, this does not need to be defined.
+* APPLICATION_ROOT to the path where the application will live. If you are using a whole domain or subdomain, this *SHOULD NOT* be defined. Otherwise, it will mess up cookie handling and cause CSRF 400 errors on login.
 
 If you are storing assets on Amazon S3, or another [Flask-Store provider](http://flask-store.soon.build)
 
 * STORE_S3_BUCKET
 * STORE_S3_REGION (eg: us-east-1, or us-west-2)
+* STORE_DOMAIN (automatically set by S3 region and bucket, override if you are using another provider)
 * S3_ACCESS_KEY
 * S3_SECRET_KEY
 
