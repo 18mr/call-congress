@@ -1,180 +1,101 @@
 - id: default
-  numbers:
-    - 415-123-1234
   target_house: true
   target_senate: true
   target_house_first: false
   msg_intro: Hi. Welcome to call congress.
   msg_intro_confirm: Press star to start.
   msg_ask_zip: >
-    Please enter your zip code so we can lookup your Congress person.
+    please enter your zip code.
   msg_invalid_zip: Sorry, that zip code didn't work. Please try again.
   msg_call_block_intro: >
     {{#many_reps}}We'll now connect you to {{n_reps}} representatives. Press
     star for next rep.{{/many_reps}}
-  msg_rep_intro: We're now connecting you to {{name}}
+  msg_rep_intro: We're now connecting you to {{name}}. Press star when you're done.
   msg_between_thanks: You're doing great - here's the next call.
   msg_final_thanks: Thank you!
+  msg_press_1: You pressed 1 at the prompt to do something assuming a callback URL was defined.
+  msg_opt_out: Sorry to see you go.
 
-- id: restrict-nsa
+- id: cca-call-congress
   numbers:
-    - 415-419-8672
-  target_house: true
-  target_senate: true
-  target_house_first: true
-  voted_with_list: [F000062, P000197]
-  msg_repo_intro_voted_with: >
-    {{name}} supports reasonable legislation to restrict the N.S.A. Let them
-    know what a good decision that is.
-  random_choice: [R000146, M000355]
+    - 612-255-1834
+    - 510-230-2893
+  msg_intro: http://action.18mr.org/static/audio/cca/msg_intro.mp3
+  msg_ask_zip: http://action.18mr.org/static/audio/cca/msg_ask_zip.mp3
+  msg_call_block_intro: http://action.18mr.org/static/audio/cca/msg_call_block_intro.mp3
+  msg_between_thanks: http://action.18mr.org/static/audio/cca/msg_between_thanks.mp3
+  msg_final_thanks: http://action.18mr.org/static/audio/cca/msg_final_thanks.mp3
+  msg_rep_intro: We're now connecting you to {{name}}. Press star when you're done.
+  msg_invalid_zip: Sorry, that zip code didn't work. Please try again.
 
-- id: trolling-effects
+- id: nanhui-ice
   numbers:
-    - 415-419-8672
-  target_house: false
-  target_senate: true
-  target_house_first: false
-  msg_intro: http://tfrce.s3.amazonaws.com/trolling-effects/msg_intro.mp3
-  msg_ask_zip: http://tfrce.s3.amazonaws.com/trolling-effects/msg_ask_zip.mp3
-  msg_invalid_zip: http://tfrce.s3.amazonaws.com/trolling-effects/msg_invalid_zip.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/trolling-effects/msg_call_block_intro.mp3
-  msg_rep_intro: We're now connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: http://tfrce.s3.amazonaws.com/trolling-effects/msg_between_thanks.mp3
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/trolling-effects/msg_final_thanks.mp3
-
-
-- id: stop-fast-track
-  numbers:
-    - 415-419-8672
-  target_house: true
-  target_senate: true
-  target_house_first: true
-  msg_intro: http://tfrce.s3.amazonaws.com/sft/sft_msg_intro.mp3
-  msg_ask_zip: http://tfrce.s3.amazonaws.com/sft/sft_ask_zip.mp3
-  msg_invalid_zip: http://tfrce.s3.amazonaws.com/sft/sft_invalid_zip.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/sft/sft_call_block_intro.mp3
-  msg_rep_intro: We're now connecting you to {{name}}
-  msg_between_thanks: http://tfrce.s3.amazonaws.com/sft/sft_between_thanks.mp3
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/sft/sft_msg_final_thanks.mp3
-
-- id: tdwfb
-  numbers:
-    - 202-552-0252
-    - 202-552-0262
-    - 202-552-0272
-  target_house: true
-  target_senate: true
-  target_house_first: false
-  msg_intro: http://tfrce.s3.amazonaws.com/tdwfb/msg_intro.mp3
-  msg_ask_zip: http://tfrce.s3.amazonaws.com/tdwfb/msg_ask_zip.mp3
-  msg_invalid_zip: http://tfrce.s3.amazonaws.com/tdwfb/msg_invalid_zip.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/tdwfb/msg_call_block_intro_calltool.mp3
-  msg_rep_intro: We're now connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: http://tfrce.s3.amazonaws.com/tdwfb/msg_between_thanks.mp3
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/tdwfb/msg_final_thanks.mp3
-
-- id: tdwfb-mobile
-  numbers:
-    - 202-552-0505
-  target_house: true
-  target_senate: true
-  target_house_first: false
-  msg_intro: http://tfrce.s3.amazonaws.com/tdwfb/msg_intro.mp3
-  msg_ask_zip: http://tfrce.s3.amazonaws.com/tdwfb/msg_ask_zip.mp3
-  msg_invalid_zip: http://tfrce.s3.amazonaws.com/tdwfb/msg_invalid_zip.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/tdwfb/msg_call_block_intro_number.mp3
-  msg_rep_intro: We're now connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: http://tfrce.s3.amazonaws.com/tdwfb/msg_between_thanks.mp3
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/tdwfb/msg_final_thanks.mp3
-
-- id: nn-calltool
-  numbers:
-    - 202-552-0272
-  target_house: true
-  target_senate: false
-  target_house_first: false
-  msg_intro: http://tfrce.s3.amazonaws.com/nn/msg_intro.mp3
-  msg_ask_zip: http://tfrce.s3.amazonaws.com/nn/msg_ask_zip.mp3
-  msg_invalid_zip: http://tfrce.s3.amazonaws.com/nn/msg_invalid_zip.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/nn/msg_call_block_intro_calltool.mp3
-  msg_rep_intro: Thanks
-  msg_between_thanks: http://tfrce.s3.amazonaws.com/nn/msg_between_thanks.mp3
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/nn/msg_final_thanks.mp3
-
-- id: nn-dial
-  numbers:
-    - 202-552-0272
-  target_house: true
-  target_senate: false
-  target_house_first: false
-  msg_intro: http://tfrce.s3.amazonaws.com/nn/msg_intro.mp3
-  msg_ask_zip: http://tfrce.s3.amazonaws.com/nn/msg_ask_zip.mp3
-  msg_invalid_zip: http://tfrce.s3.amazonaws.com/nn/msg_invalid_zip.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/nn/msg_call_block_intro_dial.mp3
-  msg_rep_intro: We're now connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: Thanks
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/nn/msg_final_thanks.mp3
-
-- id: lofgren-nsa-calltool
-  numbers:
-    - 415-419-8672
-  target_house: true
-  target_senate: false
-  target_house_first: false
-  msg_intro: https://shutthebackdoor.net/call-tool/msg_intro.mp3
-  msg_ask_zip: https://shutthebackdoor.net/call-tool/msg_ask_zip.mp3
-  msg_invalid_zip: https://shutthebackdoor.net/call-tool/msg_invalid_zip.mp3
-  msg_call_block_intro: https://shutthebackdoor.net/call-tool/msg_callblock_intro_calltool.mp3
-  msg_rep_intro: We're now connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: Thanks
-  msg_final_thanks: https://shutthebackdoor.net/call-tool/msg_final_thanks.mp3
-
-- id: lofgren-nsa-dial
-  numbers:
-    - 415-419-8672
-  target_house: true
-  target_senate: false
-  target_house_first: false
-  msg_intro: https://shutthebackdoor.net/call-tool/msg_intro.mp3
-  msg_ask_zip: https://shutthebackdoor.net/call-tool/msg_ask_zip.mp3
-  msg_invalid_zip: https://shutthebackdoor.net/call-tool/msg_invalid_zip.mp3
-  msg_call_block_intro: https://shutthebackdoor.net/call-tool/msg_callblock_intro_dial.mp3
-  msg_rep_intro: We're now connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: Thanks
-  msg_final_thanks: https://shutthebackdoor.net/call-tool/msg_final_thanks.mp3
-
-
-- id: usa-freedom
-  numbers:
-    - 415-886-1333
-  target_house: false
-  target_senate: true
-  target_house_first: false
-  msg_intro: http://tfrce.s3.amazonaws.com/usa-freedom/msg_intro.mp3
-  msg_ask_zip: http://tfrce.s3.amazonaws.com/usa-freedom/msg_ask_zip.mp3
-  msg_invalid_zip: http://tfrce.s3.amazonaws.com/usa-freedom/msg_invalid_zip.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/usa-freedom/msg_callblock_intro_calltool.mp3
-  msg_rep_intro: We're now connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: http://tfrce.s3.amazonaws.com/usa-freedom/msg_between_thanks.mp3
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/usa-freedom/msg_final_thanks.mp3
-
-- id: housefasttrack
-  numbers:
-    - 312-313-4333
+    - 916-245-8290
+    - 415-212-9636
   target_house: false
   target_senate: false
-  target_house_first: false
-  repIds:
-    - P000197
-    - H000874
-  msg_intro: http://tfrce.s3.amazonaws.com/housefasttrack/msg_intro.mp3
-  msg_call_block_intro: http://tfrce.s3.amazonaws.com/housefasttrack/msg_call_block_intro.mp3
-  msg_rep_intro: Connecting you to {{name}}. Press star once you're done.
-  msg_between_thanks: http://tfrce.s3.amazonaws.com/housefasttrack/msg_between_thanks.mp3
-  msg_final_thanks: http://tfrce.s3.amazonaws.com/housefasttrack/msg_final_thanks.mp3
+  repIds: [ ]
+  randomize_order: false
+  msg_intro: http://action.18mr.org/static/audio/nanhui-ice/msg_intro.mp3
+  msg_between_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_between_thanks.mp3
+  msg_final_thanks: http://action.18mr.org/static/audio/nanhui-ice/msg_final_thanks.mp3
+  msg_call_block_intro: We will connect you to two offices. Press star for next office.
+  msg_rep_intro: We're now connecting you to {{name}}, {{office}}. Press star when you're done.
+  extra_first_calls:
+    - name: Sarah Saldana
+      number: 202-732-3000
+      office: Director of Immigration and Customs Enforcement
+  extra_last_calls:
+    - name: Craig Meyer
+      number: 415-844-5690
+      office: ICE Field Director
 
-- id: fight215
+- id: oak-e12th
+  numbers: 
+    - 510-447-1508
+    - 510-447-1505
+  target_house: false
+  target_senate: false
+  repIds: [ ]
+  randomize_order: false
+  extra_first_calls:
+    - name: Abel Guillen
+      number: 510-238-7002
+      office: Oakland City Council District 2
+    - name: Lynette Gibson McElhaney
+      number: 510-238-7032
+      office: Oakland City Council District 3
+  extra_last_calls:
+    - name: Dan Kalb
+      number: 510-238-7001
+      office: Oakland City Council District 1
+    - name: Noel Gallo
+      number: 510-238-7005
+      office: Oakland City Council District 5
+    - name: Desley Brooks
+      number: 510-238-7006
+      office: Oakland City Council District 6
+    - name: Annie Campbell Washington
+      number: 510-238-7042
+      office: Oakland City Council District 4
+    - name: Sabrina Landreth
+      number: 510-238-3391
+      office: City Administrator
+    - name: Libby Schaaf
+      number: 510-238-3141
+      office: Mayor of Oakland
+    - name: Tomiquia Moss
+      number: 510-238-7168
+      office: Mayor's Chief of Staff
+  msg_intro: https://catachresis.github.io/savee12th/static/audio/720/msg_intro.mp3
+  msg_between_thanks: https://catachresis.github.io/savee12th/static/audio/720/msg_between_thanks.mp3
+  msg_final_thanks: https://catachresis.github.io/savee12th/static/audio/720/final_thanks.mp3
+  msg_call_block_intro: https://catachresis.github.io/savee12th/static/audio/720/msg_call_block_intro.mp3
+  msg_rep_intro: We're now connecting you to {{name}}, {{office}}. Press star when you're done.
+  
+- id: aca-2015
   numbers:
+<<<<<<< HEAD
     - 215-600-2215
     - 202-759-7590
   target_house: true
@@ -213,3 +134,15 @@
   msg_rep_intro: Connecting you to {{name}}. Press star once you're done.
   msg_between_thanks: https://tfrce.s3.amazonaws.com/fight215/msg_between_thanks.mp3
   msg_final_thanks: https://tfrce.s3.amazonaws.com/house-tpp/msg_final_thanks.mp3
+=======
+    - 202-791-4367
+    - 202-791-4403
+  target_house: false
+  target_senate: true
+  msg_intro: http://action.18mr.org/static/audio/aca/msg_intro.mp3
+  msg_between_thanks: http://action.18mr.org/static/audio/aca/msg_between_thanks.mp3
+  msg_final_thanks: http://action.18mr.org/static/audio/aca/msg_final_thanks.mp3
+  msg_call_block_intro: http://action.18mr.org/static/audio/aca/msg_call_block_intro.mp3
+  msg_invalid_zip: http://action.18mr.org/static/audio/aca/msg_invalid_zip.mp3
+  msg_ask_zip: http://action.18mr.org/static/audio/aca/msg_ask_zip.mp3
+>>>>>>> c82a5a9ed71324beca72729f13e9feac741c771d
