@@ -58,7 +58,7 @@ def form(campaign_id=None):
 
     call_in_map = {}
     for number in TwilioPhoneNumber.available_numbers().filter_by(call_in_allowed=True):
-        if campaign.id != number.call_in_campaign.id:
+        if campaign.id != number.call_in_campaign_id:
             call_in_map[number.id] = number.call_in_campaign.name
     form.phone_number_set.render_kw = { "data-call_in_map": JSONEncoder().encode(call_in_map) }
 
