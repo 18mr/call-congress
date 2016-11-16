@@ -5,6 +5,7 @@ import random
 from sunlight import openstates, response_cache
 from . import DataProvider
 
+from ..constants import US_STATE_NAME_DICT
 from ...campaign.constants import (TARGET_CHAMBER_BOTH, TARGET_CHAMBER_UPPER, TARGET_CHAMBER_LOWER,
         ORDER_IN_ORDER, ORDER_SHUFFLE, ORDER_UPPER_FIRST, ORDER_LOWER_FIRST)
 
@@ -25,20 +26,20 @@ class USStateData(DataProvider):
 
         eg us:governor:CA = {'title':'Governor', 'name':'Jerry Brown Jr.', 'phone': '18008076755'}
         """
-        governors = collections.defaultdict(list)
+        governors = collections.defaultdict(dict)
 
         with open('call_server/political_data/data/us_states.csv') as f:
             reader = csv.DictReader(f)
 
             for l in reader:
-                direct_key = self.KEY_GOVERNOR.format(**l)
+                direct_key = self.KEY_GOVERNOR.format(**{'state': l['state']})
                 d = {
                     'title': 'Governor',
-                    'name': l.get('governor'),
-                    'phone': l.get('phone_primary'),
+                    'name': ' '.join([l.get('first_name'), l.get('last_name')]),
+                    'phone': l.get('phone'),
+                    'state': l.get('state')
                 }
-                governors[direct_key].append(d)
-
+                governors[direct_key] = d
         return governors
 
     def load_data(self):
@@ -51,6 +52,8 @@ class USStateData(DataProvider):
         else:
             raise AttributeError('cache does not appear to be dict-like')
 
+        return len(governors)
+
     def cache_set(self, key, val):
         if hasattr(self.cache, 'set'):
             self.cache.set(key, val)
@@ -61,23 +64,30 @@ class USStateData(DataProvider):
 
     def get_legid(self, legid):
         cache_key = self.KEY_OPENSTATES.format(id=legid)
-        return self.get_key(cache_key)
+        return self.get_key(cache_key) or {}
 
     def get_uid(self, key):
-        return self.cache.get(key)
+        return self.cache.get(key) or {}
 
     def get_governor(self, state):
         cache_key = self.KEY_GOVERNOR.format(state=state)
-        return self.cache.get(cache_key, [{}])[0]
+        return self.cache.get(cache_key) or {}
+
+    def locate_governor(self, state):
+        return [self.KEY_GOVERNOR.format(state=state)]
 
     def locate_targets(self, latlon, chambers=TARGET_CHAMBER_BOTH, order=ORDER_IN_ORDER, state=None):
         """ Find all state legistlators for a location, as comma delimited (lat,lon)
             Returns a list of cached openstate keys in specified order.
         """
-        try:
-            (lat, lon) = latlon.split(',')
-        except ValueError:
-            raise ValueError('USStateData requires location as lat,lon')
+        if type(latlon) == tuple:
+            lat = latlon[0]
+            lon = latlon[1]
+        else:
+            try:
+                (lat, lon) = latlon.split(',')
+            except ValueError:
+                raise ValueError('USStateData requires location as lat,lon')
 
         legislators = openstates.legislator_geo_search(lat, lon)
         targets = []

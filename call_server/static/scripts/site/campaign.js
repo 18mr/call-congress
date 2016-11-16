@@ -16,6 +16,10 @@
       // call limit
       'change input[name="call_limit"]': 'changeCallLimit',
 
+      // phone numbers
+      'change select#phone_number_set': 'checkForCallInCollisions',
+      'change input#allow_call_in': 'checkForCallInCollisions',
+
       'submit': 'submitForm'
     },
 
@@ -38,6 +42,15 @@
 
       // load existing items from hidden inputs
       this.targetListView.loadExistingItems();
+
+      $("#phone_number_set").parents(".controls").after(
+        $('<div id="call_in_collisions" class="panel alert-warning col-sm-4 hidden">').append(
+          "<p>This will override call in settings for these campaigns:</p>",
+          $("<ul>")
+        )
+      );
+
+      this.checkForCallInCollisions();
     },
 
     changeCampaignType: function() {
@@ -114,6 +127,15 @@
       var type = $('select#campaign_type').val();
       var subtype = $('select#campaign_subtype').val();
 
+      // state
+      if (type === 'state') {
+        if (subtype === 'exec') {
+          $('#target-search input[name="target-search"]').attr('placeholder', 'search US NGA');
+        } else {
+          $('#target-search input[name="target-search"]').attr('placeholder', 'search OpenStates');
+        }
+      }
+
       // congress: show/hide target_ordering values upper_first and lower_first
       if ((type === 'congress' && subtype === 'both') ||
           (type === 'state' && subtype === 'both')) {
@@ -157,6 +179,23 @@
       }
     },
 
+    checkForCallInCollisions: function(event) {
+      var collisions = [];
+      var taken = $("select#phone_number_set").data("call_in_map");
+      $("select#phone_number_set option:selected").each(function() {
+        if (taken[this.value] && collisions.indexOf(taken[this.value]) == -1)
+          collisions.push(taken[this.value]);
+      });
+
+      var list = $("#call_in_collisions ul").empty();
+      list.append($.map(collisions, function(name) { return $("<li>").text(name) }));
+
+      if ($("#allow_call_in").is(":checked") && collisions.length)
+        $("#call_in_collisions").removeClass("hidden");
+      else
+        $("#call_in_collisions").addClass("hidden");
+    },
+
     validateNestedSelect: function(formGroup) {
       if ($('select.nested:visible').length) {
         return !!$('select.nested option:selected').val();
@@ -167,8 +206,15 @@
 
     validateState: function(formGroup) {
       var campaignType = $('select#campaign_type').val();
+      var campaignSubtype = $('select#campaign_subtype').val();
       if (campaignType === "state") {
-        return !!$('select[name="campaign_state"] option:selected').val();
+        if (campaignSubtype === "exec") {
+          // governor campaigns can cross states
+          return true;
+        } else {
+          // other types require a state to be selected
+          return !!$('select[name="campaign_state"] option:selected').val();
+        }
       } else {
         return true;
       }
@@ -194,16 +240,6 @@
       }
     },
 
-    validateStateLocateByLatLon: function(formGroup) {
-      // if campaignType is state and segmentBy is location, locate_by must be latlon
-      var campaignType = $('select#campaign_type').val();
-      var segmentBy = $('input[name="segment_by"]:checked').val();
-      if (campaignType === "state" && segmentBy === "location") {
-        return $('input[name="locate_by"][value="latlon"]:checked').length;
-      }
-      return true;
-    },
-
     validateTargetList: function(f) {
       // if type == custom, ensure we have targets
       if ($('select#campaign_type').val() === "custom") {
@@ -222,7 +258,9 @@
       var isValid = validator(formGroup);
 
       // put message in last help-block
-      $('.help-block', formGroup).last().text((!isValid) ? message : '');
+      if (!isValid) {
+        $('.help-block', formGroup).last().text(message).addClass('has-error');
+      }
 
       // toggle error states
       formGroup.parents('fieldset').find('legend').toggleClass('has-error', !isValid);
@@ -241,7 +279,6 @@
       // campaign segmentation
       isValid = this.validateField($('.form-group.segment_by'), this.validateSegmentBy, 'Campaign type requires custom targeting') && isValid;
       isValid = this.validateField($('.form-group.locate_by'), this.validateLocateBy, 'Please pick a location attribute') && isValid;
-      isValid = this.validateField($('.form-group.locate_by'), this.validateStateLocateByLatLon, 'State campaigns must locate by lat / lon') && isValid;
       
       // campaign targets
       isValid = this.validateField($('.form-group#set-targets'), this.validateTargetList, 'Add a custom target') && isValid;

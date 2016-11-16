@@ -342,6 +342,10 @@ $(document).ready(function () {
       // call limit
       'change input[name="call_limit"]': 'changeCallLimit',
 
+      // phone numbers
+      'change select#phone_number_set': 'checkForCallInCollisions',
+      'change input#allow_call_in': 'checkForCallInCollisions',
+
       'submit': 'submitForm'
     },
 
@@ -364,6 +368,15 @@ $(document).ready(function () {
 
       // load existing items from hidden inputs
       this.targetListView.loadExistingItems();
+
+      $("#phone_number_set").parents(".controls").after(
+        $('<div id="call_in_collisions" class="panel alert-warning col-sm-4 hidden">').append(
+          "<p>This will override call in settings for these campaigns:</p>",
+          $("<ul>")
+        )
+      );
+
+      this.checkForCallInCollisions();
     },
 
     changeCampaignType: function() {
@@ -440,6 +453,15 @@ $(document).ready(function () {
       var type = $('select#campaign_type').val();
       var subtype = $('select#campaign_subtype').val();
 
+      // state
+      if (type === 'state') {
+        if (subtype === 'exec') {
+          $('#target-search input[name="target-search"]').attr('placeholder', 'search US NGA');
+        } else {
+          $('#target-search input[name="target-search"]').attr('placeholder', 'search OpenStates');
+        }
+      }
+
       // congress: show/hide target_ordering values upper_first and lower_first
       if ((type === 'congress' && subtype === 'both') ||
           (type === 'state' && subtype === 'both')) {
@@ -483,6 +505,23 @@ $(document).ready(function () {
       }
     },
 
+    checkForCallInCollisions: function(event) {
+      var collisions = [];
+      var taken = $("select#phone_number_set").data("call_in_map");
+      $("select#phone_number_set option:selected").each(function() {
+        if (taken[this.value] && collisions.indexOf(taken[this.value]) == -1)
+          collisions.push(taken[this.value]);
+      });
+
+      var list = $("#call_in_collisions ul").empty();
+      list.append($.map(collisions, function(name) { return $("<li>").text(name) }));
+
+      if ($("#allow_call_in").is(":checked") && collisions.length)
+        $("#call_in_collisions").removeClass("hidden");
+      else
+        $("#call_in_collisions").addClass("hidden");
+    },
+
     validateNestedSelect: function(formGroup) {
       if ($('select.nested:visible').length) {
         return !!$('select.nested option:selected').val();
@@ -493,8 +532,15 @@ $(document).ready(function () {
 
     validateState: function(formGroup) {
       var campaignType = $('select#campaign_type').val();
+      var campaignSubtype = $('select#campaign_subtype').val();
       if (campaignType === "state") {
-        return !!$('select[name="campaign_state"] option:selected').val();
+        if (campaignSubtype === "exec") {
+          // governor campaigns can cross states
+          return true;
+        } else {
+          // other types require a state to be selected
+          return !!$('select[name="campaign_state"] option:selected').val();
+        }
       } else {
         return true;
       }
@@ -520,16 +566,6 @@ $(document).ready(function () {
       }
     },
 
-    validateStateLocateByLatLon: function(formGroup) {
-      // if campaignType is state and segmentBy is location, locate_by must be latlon
-      var campaignType = $('select#campaign_type').val();
-      var segmentBy = $('input[name="segment_by"]:checked').val();
-      if (campaignType === "state" && segmentBy === "location") {
-        return $('input[name="locate_by"][value="latlon"]:checked').length;
-      }
-      return true;
-    },
-
     validateTargetList: function(f) {
       // if type == custom, ensure we have targets
       if ($('select#campaign_type').val() === "custom") {
@@ -548,7 +584,9 @@ $(document).ready(function () {
       var isValid = validator(formGroup);
 
       // put message in last help-block
-      $('.help-block', formGroup).last().text((!isValid) ? message : '');
+      if (!isValid) {
+        $('.help-block', formGroup).last().text(message).addClass('has-error');
+      }
 
       // toggle error states
       formGroup.parents('fieldset').find('legend').toggleClass('has-error', !isValid);
@@ -567,7 +605,6 @@ $(document).ready(function () {
       // campaign segmentation
       isValid = this.validateField($('.form-group.segment_by'), this.validateSegmentBy, 'Campaign type requires custom targeting') && isValid;
       isValid = this.validateField($('.form-group.locate_by'), this.validateLocateBy, 'Please pick a location attribute') && isValid;
-      isValid = this.validateField($('.form-group.locate_by'), this.validateStateLocateByLatLon, 'State campaigns must locate by lat / lon') && isValid;
       
       // campaign targets
       isValid = this.validateField($('.form-group#set-targets'), this.validateTargetList, 'Add a custom target') && isValid;
@@ -590,6 +627,7 @@ $(document).ready(function () {
   });
 
 })();
+
 /*global CallPower, Backbone */
 
 (function () {
@@ -1231,7 +1269,16 @@ $(document).ready(function () {
         });
       }
 
-      if (campaign_type === 'state') {
+      if (campaign_type === 'state' && chamber === 'exec') {
+        // search scraped us_governors_contact, pass full json to search on client
+        $.ajax({
+          url: 'https://raw.githubusercontent.com/spacedogXYZ/us_governors_contact/master/data.json',
+          dataType: 'json',
+          success: _.bind(self.clientSideSearch, self),
+          error: self.errorSearchResults,
+        });
+
+      } else {
         // hit Sunlight OpenStates
 
         // TODO, request state metadata
@@ -1246,11 +1293,25 @@ $(document).ready(function () {
             chamber: chamber,
             last_name: query // NB, we can't do generic query for OpenStates, let user select field?
           },
-          beforeSend: function(jqXHR, settings) { console.log(settings.url); },
           success: self.renderSearchResults,
           error: self.errorSearchResults,
         });
       }
+    },
+
+    clientSideSearch: function(response) {
+      var query = $('input[name="target-search"]').val();
+
+      results = _.filter(response, function(item) {
+        // simple case insensitive OR search on first, last or state name
+        if (item.first_name.toLowerCase().includes(query.toLowerCase()) ||
+            item.last_name.toLowerCase().includes(query.toLowerCase()) ||
+            item.state_name.toLowerCase().includes(query.toLowerCase())
+           ) {
+          return true;
+        }
+      });
+      return this.renderSearchResults(results);
     },
 
     renderSearchResults: function(response) {
@@ -1272,15 +1333,23 @@ $(document).ready(function () {
         if (person.title === 'Sen')  { person.title = 'Senator'; }
         if (person.title === 'Rep')  { person.title = 'Representative'; }
 
-        person.uid = 'us:bioguide:'+person.bioguide_id;
+        if (person.bioguide_id) {
+          person.uid = 'us:bioguide:'+person.bioguide_id;
+        } else if (person.leg_id) {
+          person.uid = 'us_state:openstates:'+person.leg_id;
+        } else if (person.title === 'Governor') {
+          person.uid = 'us_state:governor:'+person.state
+        }
+
+        // if person has multiple phones, use only the first office
+        if (person.phone === undefined && person.offices) {
+          if (person.offices) {
+            person.phone = person.offices[0].phone;
+          }
+        }
 
         // render display
         var li = renderTemplate("#search-results-item-tmpl", person);
-
-        // if person has multiple phones, show only the first office
-        if (person.phone === undefined && person.offices) {
-          if (person.offices) { li.find('span.phone').html(person.offices[0].phone); }
-        }
         dropdownMenu.append(li);
       });
       $('.input-group .search-results').append(dropdownMenu);

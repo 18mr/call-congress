@@ -26,12 +26,13 @@ For production, you will also need to set:
 * CALLPOWER_CONFIG='call_server.config:ProductionConfig', so that manager.py knows to use a real database for migrations
 * DATABASE_URI, a sqlalchemy [connection string](https://pythonhosted.org/Flask-SQLAlchemy/config.html#connection-uri-format) for a postgres or mysql database addresses
 * REDIS_URL, a URI for the Redis server
-* APPLICATION_ROOT to the path where the application will live. If you are using a whole domain or subdomain, this does not need to be defined.
+* APPLICATION_ROOT to the path where the application will live. If you are using a whole domain or subdomain, this *SHOULD NOT* be defined. Otherwise, it will mess up cookie handling and cause CSRF 400 errors on login.
 
 If you are storing assets on Amazon S3, or another [Flask-Store provider](http://flask-store.soon.build)
 
 * STORE_S3_BUCKET
 * STORE_S3_REGION (eg: us-east-1, or us-west-2)
+* STORE_DOMAIN (automatically set by S3 region and bucket, override if you are using another provider)
 * S3_ACCESS_KEY
 * S3_SECRET_KEY
 
@@ -102,6 +103,21 @@ To run in production, with compiled assets:
     # to load the application directly
     
 Make sure your webserver can serve audio files out of `APPLICATION_ROOT/instance/uploads`. Or if you are using Amazon S3, ensure your buckets are configured for public access.
+
+Docker setup
+------------------
+A Dockerfile is included for building a container environment suitable for both development and production. To begin, copy `docker-compose.yml.example` to `docker-compose.yml` and fill in the appropriate values. Consult [the first part of this guide](#configure-settings) to learn what the required variables are.
+
+In the dockerized environment, there is one additional variable which may be set. `FLASK_ENV` will be consulted in the container's entrypoint to determine how to boot the app:
+
+FLASK_ENV           | Result
+--------------------|--------
+production          | App is brought up using `uwsgi`. In this case, the environment variable `PORT` should also be set.
+development         | App is brought up with flask's built in http server.
+development-expose  | App is brought up with flask's built in http server and then exposed externally using `ngrok`. Use this environment to test twilio functionality.
+
+If `FLASK_ENV` is not provided, the default is to bring the app up in the development environment.
+
 
 Performance Tips
 --------------------------------

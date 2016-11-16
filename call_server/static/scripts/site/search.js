@@ -64,7 +64,16 @@
         });
       }
 
-      if (campaign_type === 'state') {
+      if (campaign_type === 'state' && chamber === 'exec') {
+        // search scraped us_governors_contact, pass full json to search on client
+        $.ajax({
+          url: 'https://raw.githubusercontent.com/spacedogXYZ/us_governors_contact/master/data.json',
+          dataType: 'json',
+          success: _.bind(self.clientSideSearch, self),
+          error: self.errorSearchResults,
+        });
+
+      } else {
         // hit Sunlight OpenStates
 
         // TODO, request state metadata
@@ -79,11 +88,25 @@
             chamber: chamber,
             last_name: query // NB, we can't do generic query for OpenStates, let user select field?
           },
-          beforeSend: function(jqXHR, settings) { console.log(settings.url); },
           success: self.renderSearchResults,
           error: self.errorSearchResults,
         });
       }
+    },
+
+    clientSideSearch: function(response) {
+      var query = $('input[name="target-search"]').val();
+
+      results = _.filter(response, function(item) {
+        // simple case insensitive OR search on first, last or state name
+        if (item.first_name.toLowerCase().includes(query.toLowerCase()) ||
+            item.last_name.toLowerCase().includes(query.toLowerCase()) ||
+            item.state_name.toLowerCase().includes(query.toLowerCase())
+           ) {
+          return true;
+        }
+      });
+      return this.renderSearchResults(results);
     },
 
     renderSearchResults: function(response) {
@@ -105,15 +128,23 @@
         if (person.title === 'Sen')  { person.title = 'Senator'; }
         if (person.title === 'Rep')  { person.title = 'Representative'; }
 
-        person.uid = 'us:bioguide:'+person.bioguide_id;
+        if (person.bioguide_id) {
+          person.uid = 'us:bioguide:'+person.bioguide_id;
+        } else if (person.leg_id) {
+          person.uid = 'us_state:openstates:'+person.leg_id;
+        } else if (person.title === 'Governor') {
+          person.uid = 'us_state:governor:'+person.state
+        }
+
+        // if person has multiple phones, use only the first office
+        if (person.phone === undefined && person.offices) {
+          if (person.offices) {
+            person.phone = person.offices[0].phone;
+          }
+        }
 
         // render display
         var li = renderTemplate("#search-results-item-tmpl", person);
-
-        // if person has multiple phones, show only the first office
-        if (person.phone === undefined && person.offices) {
-          if (person.offices) { li.find('span.phone').html(person.offices[0].phone); }
-        }
         dropdownMenu.append(li);
       });
       $('.input-group .search-results').append(dropdownMenu);

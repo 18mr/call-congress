@@ -2,6 +2,9 @@ import csv
 import collections
 import random
 
+from datetime import datetime
+import yaml
+
 from . import DataProvider
 
 from ...campaign.constants import (TARGET_CHAMBER_BOTH, TARGET_CHAMBER_UPPER, TARGET_CHAMBER_LOWER,
@@ -28,24 +31,35 @@ class USData(DataProvider):
         """
         legislators = collections.defaultdict(list)
 
-        with open('call_server/political_data/data/us_legislators.csv') as f:
-            reader = csv.DictReader(f)
+        with open('call_server/political_data/data/legislators-current.yaml') as f:
+            for info in yaml.load(f):
+                term = info["terms"][-1]
+                if term["start"] < "2011-01-01":
+                    continue # don't get too historical
 
-            for l in reader:
-                if l['in_office'] != '1':
-                    # skip if out of office
-                    continue
+                district = str(term["district"]) if term.has_key("district") else None
 
-                direct_key = self.KEY_BIOGUIDE.format(**l)
-                legislators[direct_key].append(l)
+                record = {
+                    "first_name":  info["name"]["first"],
+                    "last_name":   info["name"]["last"],
+                    "bioguide_id": info["id"]["bioguide"],
+                    "title":       "Senator" if term["type"] == "sen" else "Representative",
+                    "phone":       term["phone"],
+                    "current":     datetime.now().strftime("%Y-%m-%d") <= term["end"],
+                    "chamber":     "senate" if term["type"] == "sen" else "house",
+                    "state":       term["state"],
+                    "district":    district,
+                    "bioguide_id": info["id"]["bioguide"]
+                }
 
-                if l['senate_class']:
-                    l['chamber'] = 'senate'
-                    chamber_key = self.KEY_SENATE.format(**l)
+                direct_key = self.KEY_BIOGUIDE.format(**record)
+                if record["chamber"] == "senate":
+                    chamber_key = self.KEY_SENATE.format(**record)
                 else:
-                    l['chamber'] = 'house'
-                    chamber_key = self.KEY_HOUSE.format(**l)
-                legislators[chamber_key].append(l)
+                    chamber_key = self.KEY_HOUSE.format(**record)
+
+                legislators[direct_key].append(record)
+                legislators[chamber_key].append(record)
 
         return legislators
 
@@ -82,6 +96,8 @@ class USData(DataProvider):
         else:
             raise AttributeError('cache does not appear to be dict-like')
 
+        return len(districts) + len(legislators)
+
     # convenience methods for easy house, senate, district access
     def get_house_member(self, state, district):
         key = self.KEY_HOUSE.format(state=state, district=district)
@@ -97,30 +113,45 @@ class USData(DataProvider):
     def get_bioguide(self, uid):
         return self.cache.get(self.KEY_BIOGUIDE.format(bioguide_id=uid)) or {}
 
+    def get_executive(self):
+        # return Whitehouse comment line
+        return [{'office': 'Whitehouse Comment Line',
+                'number': '12024561111'}]
+
     def get_uid(self, key):
         return self.cache.get(key) or {}
 
-    def locate_targets(self, zipcode, chambers=TARGET_CHAMBER_BOTH, order=ORDER_IN_ORDER):
-        """ Find all congressional targets for a zipcode, crossing state boundaries if necessary.
+    def locate_targets(self, state=None, district=None, zipcode=None, chambers=TARGET_CHAMBER_BOTH, order=ORDER_IN_ORDER):
+        """ Find all congressional targets for state/district (or just zipcode).
         Returns a list of cached bioguide keys in specified order.
         """
 
-        districts = self.cache.get(self.KEY_ZIPCODE.format(zipcode=zipcode))
-        if not districts:
-            return None
-
-        states = set(d['state'] for d in districts)  # yes, there are zipcodes that cross states
-        if not states:
-            return None
-
         senators = []
         house_reps = []
-        for state in states:
+        if zipcode:
+            districts = self.cache.get(self.KEY_ZIPCODE.format(zipcode=zipcode))
+            if not districts:
+                return None
+
+            states = set(d['state'] for d in districts)  # there are zipcodes that cross states
+            if not states:
+                return None
+
+            for state in states:
+                for senator in self.get_senators(state):
+                    senators.append(self.KEY_BIOGUIDE.format(**senator))
+
+            for d in districts:
+                rep = self.get_house_member(d['state'], d['house_district'])[0]
+                house_reps.append(self.KEY_BIOGUIDE.format(**rep))
+        elif state and district:
             for senator in self.get_senators(state):
                 senators.append(self.KEY_BIOGUIDE.format(**senator))
-        for d in districts:
-            rep = self.get_house_member(d['state'], d['house_district'])[0]
+
+            rep = self.get_house_member(state, district)[0]
             house_reps.append(self.KEY_BIOGUIDE.format(**rep))
+        else:
+            raise ValueError("state and district, or zipcode, must be provided")
 
         targets = []
         if chambers == TARGET_CHAMBER_UPPER:
