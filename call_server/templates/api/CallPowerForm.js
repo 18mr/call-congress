@@ -2,7 +2,7 @@
   * CallPowerForm.js
   * Connects embedded action form to CallPower campaign
   * Requires jQuery >= 1.7.0
-  *    proxy (1.4), deferred (1.5), on (1.7)
+  *    proxy (1.4), deferred (1.5), promises (1.6), on (1.7)
   *
   * Displays call script in overlay or by replacing form
   * Override functions onSuccess or onError in CallPowerOptions
@@ -10,21 +10,40 @@
   * (c) Spacedog.xyz 2015, license AGPLv3
   */
 
+// revealing module pattern
 var CallPowerForm = function (formSelector, $) {
   // instance variables
-  this.form = $(formSelector);
-  this.locationField = $('{{campaign.embed.get("location_sel","#location_id")}}');
-  this.phoneField = $('{{campaign.embed.get("phone_sel","#phone_id")}}');
+  this.$ = $;  // stash loaded version of jQuery, in case there are conflicts with window
+  this.form = this.$(formSelector);
+  {% if campaign.embed %}
+  this.locationField = this.$('{{campaign.embed.get("location_sel","#location_id")}}');
+  this.phoneField = this.$('{{campaign.embed.get("phone_sel","#phone_id")}}');
+  {% else %}
+  this.locationField = this.$("#location_id");
+  this.phoneField = this.$("#phone_id");
+  {% endif %}
   this.scriptDisplay = 'overlay';
   
-  // allow options override
+  // allow options to override settings
   for (var option in window.CallPowerOptions || []) {
-    this[option] = CallPowerOptions[option];
+    var setting = CallPowerOptions[option];
+    // accept jquery selectors for form and fields
+    var selectorFields = ['form', 'locationField', 'phoneField'];
+    if ($.inArray(option, selectorFields) != -1 && typeof setting === 'string') {
+      this[option] = this.$(setting);
+    } else { 
+      this[option] = setting;
+    }
   }
 
-  this.form.on("submit", $.proxy(this.makeCall, this));
+  // bind our submit event to makeCall
+  this.form.on("submit.CallPower", this.$.proxy(this.makeCall, this));
   // include custom css
-  if(this.customCSS !== undefined) { $('head').append('<link rel="stylesheet" href="'+this.customCSS+'" />'); }
+  if(this.customCSS !== undefined) {
+    var link_elem = 'link rel="stylesheet" href="';
+    // one weird trick to create the element without it rendering in browsers
+    this.$('head').append('<'+link_elem+this.customCSS+'" />');
+  }
 };
 
 CallPowerForm.prototype = function($) {
@@ -32,34 +51,76 @@ CallPowerForm.prototype = function($) {
   var createCallURL = '{{url_for("call.create", _external=True)}}';
   var campaignId = "{{campaign.id}}";
 
-  var getCountry = function() {
-    return "{{campaign.country|default('US')}}";
+  var simpleGetCountry = function() {
+    return "{{campaign.country_code|default('US')}}";
   };
 
-  var cleanUSZipcode = function() {
-    if (this.locationField.length === 0) { return undefined; }
-    var isValid = /(\d{5}([\-]\d{4})?)/.test(this.locationField.val());
-    return isValid ? this.locationField.val() : false;
+  var cleanUSZipcode = function(val) {
+    if (val.length === 0) { return undefined; }
+    var isValid = /(\d{5}([\-]\d{4})?)/.test(val);
+    return isValid ? val : false;
   };
 
-  var cleanUSPhone = function() {
+  var cleanCAPostal = function(val) {
+      if (val === 0) { return undefined; }
+      var valNospace = val.replace(/\W+/g, '');
+      var isValid = /([ABCEGHJKLMNPRSTVXY]\d)([ABCEGHJKLMNPRSTVWXYZ]\d){2}/i.test(valNospace);
+      return isValid ? valNospace : false;
+  };
+
+  // very simple country specific validators
+  // override with eg google places autocomplete
+  var simpleValidateLocation = function() {
+    countryCode = this.country();
+
+    var isValid = false;
+    if (countryCode === 'US') { return cleanUSZipcode(this.locationField.val()); }
+    else if (countryCode === 'CA') { return cleanCAPostal(this.locationField.val()); }
+    else { return this.locationField.val(); }
+  };
+
+  // very simple country specific length validators
+  // override with eg: google libphonenumber
+  var simpleValidatePhone = function(countryCode) {
+    countryCode = this.country();
+
     if (this.phoneField.length === 0) { return undefined; }
-    var num = this.phoneField.val();
-    // remove whitespace, parens
-    num = num.replace(/\s/g, '').replace(/\(/g, '').replace(/\)/g, '');
-    // plus, dashes
-        num = num.replace("+", "").replace(/\-/g, '');
-        // leading 1
-        if (num.charAt(0) == "1")
-            num = num.substr(1);
-        var isValid = (num.length == 10); // ensure just 10 digits remain 
+    // remove whitespace, parents, plus, dashes from phoneField
+    var num = this.phoneField.val()
+      .replace(/\s/g, '').replace(/\(/g, '').replace(/\)/g, '')
+      .replace('+', '').replace(/\-/g, '');
+    return num;
 
-    return isValid ? num : false;
+    var isValid = false;
+    var prefix;
+    if (countryCode === 'US' || countryCode === 'CA') {
+        prefix = "1";
+        // strip leading prefix
+        if (num.charAt(0) === prefix) {
+          num = num.substr(1);
+        }
+        isValid = (num.length == 10); // ensure just 10 digits remain
+    }
+    else if (countryCode === 'GB') {
+        prefix = "44";
+        // strip leading prefix
+        if (num.slice(0,2) === prefix) {
+          num = num.substr(2);
+        }
+        isValid = (num.length >= 9); // ensure at least 9 digits remain 
+    }
+    else {
+      prefix = '';
+      isValid = (num.length > 8); // ensure at least a few digits remain
+    }
+
+    // re-append prefix and plus sign, for e164 dialing
+    if (prefix || prefix === '') {
+      num = "+"+prefix+num;
+    }
+    return isValid ?  num : false;
   };
 
-  // default to US validators
-  var cleanPhone = cleanUSPhone;
-  var cleanLocation = cleanUSZipcode;
 
   var onSuccess = function(response) {
     if (response.campaign === 'archived') { return onError(this.form, 'This campaign is no longer active.'); }
@@ -69,19 +130,44 @@ CallPowerForm.prototype = function($) {
 
     if (this.scriptDisplay === 'overlay') {
       // display simple overlay with script content
-      var scriptOverlay = $('<div class="overlay"><div class="modal">'+response.script+'</div></div>');
-      $('body').append(scriptOverlay);
+      var scriptOverlay = this.$('<div class="overlay"><div class="modal">'+response.script+'</div></div>');
+      this.$('body').append(scriptOverlay);
       scriptOverlay.overlay();
       scriptOverlay.trigger('show');
     }
 
     if (this.scriptDisplay === 'replace') {
-      // replace form with script content
-      this.form.html(response.script);
+      // hide form and show script contents
+
+      // start new empty hidden div
+      var scriptDiv = this.$('<div style="display: none;"></div>');
+      // copy existing form classes and styling
+      scriptDiv.addClass(this.form.attr('class'));
+      // insert response contents
+      scriptDiv.html(response.script);
+
+      scriptDiv.insertAfter(this.form);
+      this.form.slideUp();
+      scriptDiv.slideUp();
     }
 
-    // run custom js function 
-    if(this.customJS !== undefined) { eval(this.customJS); }
+    if (this.scriptDisplay === 'redirect') {
+      // save response url to redirect after original form callback
+      this.redirectAfter = response.redirect;
+    }
+
+    if (this.scriptDisplay === 'alert') {
+      // popup alert with response.script text
+      var message = this.$(response.script);
+      alert(message.text());
+    }
+
+    // run custom js function
+    if(typeof this.customJS !== 'undefined') {
+      var $ = this.$; // make our version of jQuery available to local context
+      if(typeof this.customJS === 'string' ) { eval(this.customJS); }
+      else if (typeof this.customJS === 'function') { this.customJS(); }
+    }
 
     return true;
   };
@@ -96,13 +182,8 @@ CallPowerForm.prototype = function($) {
   };
 
   var makeCall = function(event, options) {
+    // stop default form submit event
     if (event !== undefined) { event.preventDefault(); }
-    // stop default submit event
-
-    options = options || {};
-    if (options.call_started) {
-      return true;
-    }
 
     if (this.locationField.length && !this.location()) {
       return this.onError(this.locationField, 'Invalid location');
@@ -111,29 +192,57 @@ CallPowerForm.prototype = function($) {
       return this.onError(this.phoneField, 'Invalid phone number');
     }
 
-    $.ajax(createCallURL, {
+    this.$.ajax(createCallURL, {
       method: 'GET',
       data: {
         campaignId: campaignId,
         userLocation: this.location(),
         userPhone: this.phone(),
         userCountry: this.country()
-      },
-      success: $.proxy(this.onSuccess, this),
-      error: $.proxy(this.onError, this, this.form, 'Please fill out the form completely')
-    }).then(function() {
-      // run previous default event without this callback
-      $(event.currentTarget).trigger(event.type, { 'call_started': true });
-    }).fail(this.onError);
+      }
+    })
+    .done(this.$.proxy(this.onSuccess, this))
+    .fail(this.$.proxy(this.onError, this, this.form, 'Please fill out the form completely'))
+    .then(this.$.proxy(function() {
+      // turn off our submit event
+      this.form.off('submit.CallPower');
+
+      // redirect after original form submission is complete
+      
+      if (this.scriptDisplay === 'overlay') {
+        // bind overlay hide to original form submit
+        this.$('.overlay').on('hide', this.$.proxy(this.formSubmit, this));
+      } else if (this.scriptDisplay === 'replace') {
+        // original form still exists, but is hidden
+        // do nothing
+      } else if (this.scriptDisplay === 'redirect' && this.redirectAfter) {
+          window.location.replace(this.redirectAfter);
+      } else {
+        // re-trigger original form submit
+        this.formSubmit();
+      }
+    }, this))
+    .fail(this.$.proxy(this.onError, this, this.form, 'Sorry, there was an error making the call'));
+  };
+
+  var formSubmit = function() {
+    // trigger form submit event after optional delay
+    window.setTimeout(this.$.proxy(function() { this.form.trigger('submit'); }, this), this.submitDelay || 0);
   };
 
   // public method interface
-  return {
-    country: getCountry,
-    location: cleanLocation,
-    phone: cleanPhone,
+  var public = {
+    getCountry: simpleGetCountry,
+    getLocation: simpleValidateLocation,
+    getPhone: simpleValidatePhone,
     onError: onError,
     onSuccess: onSuccess,
-    makeCall: makeCall
+    makeCall: makeCall,
+    formSubmit: formSubmit
   };
+  // let these be overridden, but keep reference to original functions
+  public.country = public.getCountry;
+  public.location = public.getLocation;
+  public.phone = public.getPhone;
+  return public;
 } (jQuery);

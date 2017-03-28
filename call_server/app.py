@@ -1,11 +1,14 @@
 import os
 import logging
+import glob
 
 from flask import Flask, g, request, session
 from flask.ext.assets import Bundle
+from flask_sslify import SSLify
 
 from utils import json_markup, OrderedDictYAMLLoader
 import yaml
+from datetime import datetime
 
 import config
 
@@ -15,6 +18,7 @@ from .user import User, user
 from .call import call
 from .campaign import campaign
 from .api import api, configure_restless, restless_preprocessors
+from .political_data import political_data
 
 from extensions import cache, db, babel, assets, login_manager, csrf, mail, store, rest
 
@@ -25,6 +29,7 @@ DEFAULT_BLUEPRINTS = (
     call,
     campaign,
     api,
+    political_data
 )
 
 
@@ -39,6 +44,7 @@ def create_app(configuration=None, app_name=None, blueprints=None):
     app = Flask(app_name)
     # configure app from object or environment
     configure_app(app, configuration)
+    SSLify(app)
     # init extensions once we have app context
     init_extensions(app)
     # then blueprints, for url/view routing
@@ -105,6 +111,7 @@ def init_extensions(app):
     if app.config.get('DEBUG'):
         from flask_debugtoolbar import DebugToolbarExtension
         DebugToolbarExtension(app)
+        app.debug = True
 
 
 def register_blueprints(app, blueprints):
@@ -173,7 +180,8 @@ def configure_assets(app):
                       filters='rjsmin', output='dist/js/graph.js')
     assets.register('graph_js', graph_js)
 
-    site_js = Bundle('scripts/site.js', 'scripts/site/*.js',
+    site_js = Bundle('scripts/site.js',
+                     'scripts/site/views/*.js',
                      output='dist/js/site.js')
     assets.register('site_js', site_js)
 
@@ -192,10 +200,27 @@ def context_processors(app):
     @app.context_processor
     def inject_sunlight_key():
         return dict(SUNLIGHT_API_KEY=app.config.get('SUNLIGHT_API_KEY', ''))
+    
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.utcnow()}
+
+    @app.context_processor
+    def inject_version():
+        version = os.environ.get('VERSION')
+        if not version:
+            version = app.config.get('VERSION')
+        if not version:
+            version = os.environ.get('HEROKU_SLUG_DESCRIPTION')
+        return {'version': version}
 
     # json filter
     app.jinja_env.filters['json'] = json_markup
     app.jinja_env.add_extension('call_server.jinja.SelectiveHTMLCompress')
+
+    # cleanup template whitespace
+    app.jinja_env.trim_blocks = True
+    app.jinja_env.lstrip_blocks = True
 
 
 def instance_defaults(app):

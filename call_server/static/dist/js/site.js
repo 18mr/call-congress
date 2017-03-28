@@ -69,12 +69,17 @@ $(document).ready(function () {
                        navigator.msGetUserMedia);
       window.URL = window.URL || window.webkitURL;
 
+      if (CallPower.Config.TWILIO_CAPABILITY) {
+        this.setupTwilioClient(CallPower.Config.TWILIO_CAPABILITY);
+      }
+
       // add required fields client-side
       _.each(this.requiredFields, function(f) {
         $('label[for='+f+']').addClass('required');
       });
 
       this.campaign_id = $('input[name="campaign_id"]').val();
+      this.campaign_language = $('input[name="campaign_language"]').val();
 
       $('audio', this.el).on('ended', this.onPlayEnded);
       _.bindAll(this, 'onPlayEnded');
@@ -89,53 +94,130 @@ $(document).ready(function () {
                     key: inputGroup.prev('label').attr('for'),
                     description: inputGroup.find('.description .help-inline').text(),
                     example_text: inputGroup.find('.description .example-text').text(),
-                    campaign_id: this.campaign_id
+                    campaign_id: this.campaign_id,
+                    campaign_language: this.campaign_language,
                   };
-      this.microphoneView = new CallPower.Views.MicrophoneModal();
-      this.microphoneView.render(modal);
+      // and api
+      var self = this;
+      $.getJSON('/api/campaign/'+this.campaign_id,
+          function(data) {
+            var recording = data.audio_msgs[modal.key];
+
+            if (recording === undefined) {
+              return false;
+            }
+            if (recording.substring(0,4) == 'http') {
+              modal.filename = recording;
+            } else {
+              modal.text_to_speech = recording;
+          }
+        }).then(function() {
+          self.microphoneView = new CallPower.Views.MicrophoneModal();
+          self.microphoneView.render(modal);
+        });
     },
 
     onPlay: function(event) {
       event.preventDefault();
       
-      var button = $(event.target);
+      var button = $(event.currentTarget); //.closest('button.play');
       var inputGroup = button.parents('.input-group');
       var key = inputGroup.prev('label').attr('for');
-      var playback = button.children('audio');
+      var audio = button.children('audio')[0];
+      
+      if (audio.src) {
+        // has src url set, play/pause
 
-      var self = this;
-      $.getJSON('/api/campaign/'+self.campaign_id,
-        function(data) {
-          var recording = data.audio_msgs[key];
+        if (audio.duration > 0 && !audio.paused) {
+          // playing, pause
+          audio.pause();
 
-          if (recording === undefined) {
-            button.addClass('disabled');
-            return false;
-          }
-          if (recording.substring(0,4) == 'http') {
-            // play file url through <audio> object
-            playback.attr('src', data.audio_msgs[key]);
-            playback[0].play();
-          } else if (CallPower.Config.TWILIO_CAPABILITY) {
-            //connect twilio API to read text-to-speech
-            twilio = Twilio.Device.setup(CallPower.Config.TWILIO_CAPABILITY, 
-              {"rtc": (navigator.getUserMedia !== undefined), "debug":true});
-            twilio.connect({'text': recording });
-            twilio.disconnect(self.onPlayEnded);
-          } else {
-            return false;
-          }
+          button.children('.glyphicon').removeClass('glyphicon-pause').addClass('glyphicon-play');
+          button.children('.text').html('Play');
+          return false;
+        } else {
+          // paused, play
+          audio.play();
 
           button.children('.glyphicon').removeClass('glyphicon-play').addClass('glyphicon-pause');
           button.children('.text').html('Pause');
+          return false;
         }
-      );
+      } else {
+        // load src url from campaign
+        var self = this;
+        $.getJSON('/api/campaign/'+self.campaign_id,
+          function(data) {
+            var recording = data.audio_msgs[key];
+
+            if (recording === undefined) {
+              button.addClass('disabled');
+              return false;
+            }
+            if (recording.substring(0,4) == 'http') {
+              // play file url through <audio> object
+              audio.setAttribute('src', data.audio_msgs[key]);
+              audio.play();
+
+              button.children('.glyphicon').removeClass('glyphicon-play').addClass('glyphicon-pause');
+              button.children('.text').html('Pause');
+            } else if (self.twilio) {
+              console.log('twilio text-to-speech',recording);
+              self.twilio.connect({
+                'text': recording,
+                'voice': 'alice',
+                'lang': self.campaign_language,
+            });
+
+              button.children('.glyphicon').removeClass('glyphicon-play').addClass('glyphicon-bullhorn');
+              button.children('.text').html('Speak');
+          } else {
+            button.addClass('disabled');
+            return false;
+          }
+        });
+      }
     },
 
     onPlayEnded: function(event) {
       var button = $(event.target).parents('.btn');
       button.children('.glyphicon').removeClass('glyphicon-pause').addClass('glyphicon-play');
       button.children('.text').html('Play');
+    },
+
+    setupTwilioClient: function(capability) {
+      //connect twilio API to read text-to-speech
+      try {
+        this.twilio = Twilio.Device.setup(capability, {"debug":false});
+      } catch (e) {
+        console.error(e);
+        msg = 'Sorry, your browser does not support WebRTC, Text-to-Speech playback may not work.<br/>' +
+              'Check the list of compatible browsers at <a href="https://support.twilio.com/hc/en-us/articles/223180848-Which-browsers-support-WebRTC-">Twilio support</a>.';
+        window.flashMessage(msg, 'warning');
+        return false;
+      }
+
+      this.twilio.incoming(function(connection) {
+        connection.accept();
+        // do awesome ui stuff here
+        // $('#call-status').text("you're on a call!");
+      });
+      this.twilio.error(function(error) {
+        console.error(error);
+        var msg = 'Twilio error';
+        var level = 'warning'
+        if (error.info) {
+          msg = msg+': '+error.info.code+' '+error.info.message;
+        } else if (error.message) {
+          msg = msg + ': ' + error.message;
+          level = 'info'; // yes, this is very counterintuitive
+        }
+        window.flashMessage(msg, level);
+      });
+      this.twilio.connect(function(conn) {
+        console.log('Twilio connection', conn.status());
+      });
+      this.twilio.disconnect(this.onPlayEnded);
     },
 
     onVersion: function(event) {
@@ -335,6 +417,7 @@ $(document).ready(function () {
       'click a.clear': 'clearRadioChoices',
 
       // campaign targets
+      'change select#campaign_country':  'changeCampaignCountry',
       'change select#campaign_type':  'changeCampaignType',
       'change select#campaign_subtype':  'changeCampaignSubtype',
       'change input[name="segment_by"]': 'changeSegmentBy',
@@ -351,6 +434,7 @@ $(document).ready(function () {
 
     initialize: function() {
       // init child views
+
       this.searchForm = new CallPower.Views.TargetSearch();
       this.targetListView = new CallPower.Views.TargetList();
 
@@ -359,6 +443,7 @@ $(document).ready(function () {
 
       // trigger change to targeting fields
       // so defaults show properly
+      this.changeCampaignCountry();
       this.changeCampaignType();
       this.changeSegmentBy();
 
@@ -379,70 +464,68 @@ $(document).ready(function () {
       this.checkForCallInCollisions();
     },
 
-    changeCampaignType: function() {
-      // updates campaign_subtype with available choices from data-attr
-      var field = $('select#campaign_type');
-      var val = field.val();
+    changeCampaignCountry: function() {
+      if ($('select#campaign_country').attr('disabled')) {
+        // country already set, no need to update type
+        return false;
+      }
 
-      var nested_field = $('select#campaign_subtype');
-      var nested_choices = nested_field.data('nested-choices');
-      var nested_val = nested_field.data('nested-selected');
+      // updates campaign_type with available choices from data-attr
+      var country = $('select#campaign_country').val();
+      var nested_field = $('select#campaign_type');
+      var nested_val = nested_field.val();
+
+      var type_choices = nested_field.data('nested-choices');
+      var selected_choices = type_choices[country];
+      
+      // clear existing choices
       nested_field.empty();
+      nested_field.append('<option val=""></option>');
 
-      // fill in new choices from data attr
-      // - handle weird obj layout from constants
-      var avail = _.find(nested_choices, function(v) { return v[0] == val; })[1];
-      _.each(avail, function(v) {
-        var option = $('<option value="'+v[0]+'">'+v[1]+'</option>');
+      // append new ones
+      $(selected_choices).each(function() {
+        var option = $('<option value="'+this[0]+'">'+this[1]+'</option>');
+        if (option.val() === nested_val) { option.attr('selected', true); }
         nested_field.append(option);
       });
-      var nested_avail = _.find(avail, function(v) { return v[0] === nested_val; });
+    },
 
-      // reset initial choice if still valid
-      if (nested_avail) {
-        nested_field.val(nested_val);
-      } else {
-        nested_field.val('');
-      }
+    changeCampaignType: function() {
+      // show/hide target segmenting based on campaign country and type
+      var country = $('select#campaign_country').val();
+      var type = $('select#campaign_type').val();
 
-      // hide field if no choices present
-      if (avail.length === 0) {
-        nested_field.hide();
-      } else {
-        nested_field.show();
-      }
+      if (country ==='us') {
+        if (type === "congress") {
+          // hide campaign_state form-group
+          $('.form-group.campaign_state').hide();
+        }
 
-      // special cases
+        // local or custom: no segment, location or search, show custom target_set
+        if (type === "custom" || type === "local" || type === "executive") {
+          // set default values
+          $('.form-group.locate_by input[name="locate_by"][value=""]').click();
+          $('.form-group.segment_by input[name="segment_by"][value="custom"]').click();
+          // hide fields
+          $('.form-group.segment_by').hide();
+          $('.form-group.locate_by').hide();
+          $('#target-search').hide();
+          // show custom target search
+          $('#set-targets').show();
+          // hide target_offices
+          $('.form-group.target_offices').hide();
+        } else {
+          // congress
+          $('.form-group.segment_by').show();
+          $('.form-group.locate_by').show();
+          $('.form-group.target_offices').show();
+          $('#target-search').show();
 
-      // state: show/hide campaign_state select
-      if (val === 'state') {
-        $('select[name="campaign_state"]').show();
-        $('#target-search input[name="target-search"]').attr('placeholder', 'search OpenStates');
-      } else {
-        $('select[name="campaign_state"]').hide();
-        $('#target-search input[name="target-search"]').attr('placeholder', 'search Sunlight');
-      }
-
-      // local or custom: no segment, location or search, show custom target_set
-      if (val === "custom" || val === "local" || val === "executive") {
-        // set default values
-        $('.form-group.locate_by input[name="locate_by"][value=""]').click();
-        $('.form-group.segment_by input[name="segment_by"][value="custom"]').click();
-        // hide fields
-        $('.form-group.segment_by').hide();
-        $('.form-group.locate_by').hide();
-        $('#target-search').hide();
-        // show custom target search
-        $('#set-targets').show();
-      } else {
-        $('.form-group.segment_by').show();
-        $('.form-group.locate_by').show();
-        $('#target-search').show();
-
-        var segment_by = $('input[name="segment_by"]:checked');
-        // unless segment_by is custom
-        if (segment_by.val() !== 'custom') {
-          $('#set-targets').hide();
+          var segment_by = $('input[name="segment_by"]:checked');
+          // unless segment_by is custom
+          if (segment_by.val() !== 'custom') {
+            $('#set-targets').hide();
+          }
         }
       }
 
@@ -450,28 +533,44 @@ $(document).ready(function () {
     },
 
     changeCampaignSubtype: function(event) {
+      var country = $('select#campaign_country').val();
       var type = $('select#campaign_type').val();
       var subtype = $('select#campaign_subtype').val();
 
-      // state
-      if (type === 'state') {
-        if (subtype === 'exec') {
-          $('#target-search input[name="target-search"]').attr('placeholder', 'search US NGA');
+      // show all search fields
+      $('.search-field ul.dropdown-menu li a').show();
+
+      if (country === 'us') {
+        $('.search-field ul.dropdown-menu li #state').text('State');
+
+        if (type === 'state') {
+          if (subtype === 'exec') {
+            $('#target-search input[name="target-search"]').attr('placeholder', 'search US Governors');
+          } else {
+            $('#target-search input[name="target-search"]').attr('placeholder', 'search OpenStates');
+            $('.search-field ul.dropdown-menu li #state').hide(); // already searching by state
+          }
+        }
+
+        // congress: show/hide target_ordering values upper_first and lower_first
+        if ((type === 'congress' && subtype === 'both') ||
+            (type === 'state' && subtype === 'both')) {
+          $('input[name="target_ordering"][value="upper-first"]').parent('label').show();
+          $('input[name="target_ordering"][value="lower-first"]').parent('label').show();
         } else {
-          $('#target-search input[name="target-search"]').attr('placeholder', 'search OpenStates');
+          $('input[name="target_ordering"][value="upper-first"]').parent('label').hide();
+          $('input[name="target_ordering"][value="lower-first"]').parent('label').hide();
         }
       }
 
-      // congress: show/hide target_ordering values upper_first and lower_first
-      if ((type === 'congress' && subtype === 'both') ||
-          (type === 'state' && subtype === 'both')) {
-        $('input[name="target_ordering"][value="upper-first"]').parent('label').show();
-        $('input[name="target_ordering"][value="lower-first"]').parent('label').show();
-      } else {
-        $('input[name="target_ordering"][value="upper-first"]').parent('label').hide();
-        $('input[name="target_ordering"][value="lower-first"]').parent('label').hide();
-      }
+      if (country === 'ca') {
+        $('.search-field ul.dropdown-menu li #state').text('Province');
+        $('#target-search input[name="target-search"]').attr('placeholder', 'search OpenNorth');
 
+        if (type === 'province') {
+          $('.search-field ul.dropdown-menu li #state').hide(); // already searching by province
+        }
+      }
     },
 
     clearRadioChoices: function(event) {
@@ -480,15 +579,29 @@ $(document).ready(function () {
     },
 
     changeSegmentBy: function() {
-      var selected = $('input[name="segment_by"]:checked');
+      var segment_by = $('input[name="segment_by"]:checked').val();
 
-      if (selected.val() === 'location') {
+      if (segment_by === 'location') {
         $('.form-group.locate_by').show();
+
+        // target_ordering can be chamber dependent
+        $('input[name="target_ordering"][value="upper-first"]').parent('label').show();
+        $('input[name="target_ordering"][value="lower-first"]').parent('label').show();
+
+        // target_offices can use districts
+        $('.form-group.target_offices').show();
       } else {
         $('.form-group.locate_by').hide();
+
+        // target_ordering can only be 'in order' or 'shuffle'
+        $('input[name="target_ordering"][value="upper-first"]').parent('label').hide();
+        $('input[name="target_ordering"][value="lower-first"]').parent('label').hide();
+
+        // target_offices will be default
+        $('.form-group.target_offices').hide();
       }
 
-      if (selected.val() === 'custom') {
+      if (segment_by === 'custom') {
         $('#set-targets').show();
       } else {
         $('#set-targets').hide();
@@ -580,6 +693,11 @@ $(document).ready(function () {
     },
 
     validateField: function(formGroup, validator, message) {
+      // first check to see if formGroup is present
+      if (!!formGroup) {
+        return true;
+      }
+
       // run validator for formGroup
       var isValid = validator(formGroup);
 
@@ -591,6 +709,7 @@ $(document).ready(function () {
       // toggle error states
       formGroup.parents('fieldset').find('legend').toggleClass('has-error', !isValid);
       formGroup.toggleClass('has-error', !isValid);
+
       return isValid;
     },
 
@@ -598,9 +717,12 @@ $(document).ready(function () {
     validateForm: function() {
       var isValid = true;
 
-      // campaign type
-      isValid = this.validateField($('.form-group.campaign_type'), this.validateState, 'Select a state') && isValid;
-      isValid = this.validateField($('.form-group.campaign_type'), this.validateNestedSelect, 'Select a sub-type') && isValid;
+      // campaign country and type
+      isValid = this.validateField($('.form-group.campaign_country'), this.validateSelected, 'Select a country') && isValid;
+      isValid = this.validateField($('.form-group.campaign_type'), this.validateNestedSelect, 'Select a type') && isValid;
+
+      // campaign sub-type
+      isValid = this.validateField($('.form-group.campaign_subtype'), this.validateState, 'Select a sub-type') && isValid;
 
       // campaign segmentation
       isValid = this.validateField($('.form-group.segment_by'), this.validateSegmentBy, 'Campaign type requires custom targeting') && isValid;
@@ -635,15 +757,28 @@ $(document).ready(function () {
     el: $('#launch'),
 
     events: {
+      'change select#test_call_country': 'changeTestCallCountry',
       'click .test-call': 'makeTestCall',
-      'change #embed_type': 'toggleCustomEmbedPanel',
+      'change #embed_type': 'toggleEmbedPanel',
       'blur #custom_embed_options input': 'updateEmbedCode',
+      'change #custom_embed_options select': 'updateEmbedCode',
+      'change #embed_script_display': 'updateEmbedScriptDisplay',
     },
 
     initialize: function() {
       this.campaignId = $('#campaignId').val();
       $('.readonly').attr('readonly', 'readonly');
-      this.toggleCustomEmbedPanel();
+      this.toggleEmbedPanel();
+    },
+
+    changeTestCallCountry: function() {
+      var country = $('#test_call_country').val();
+      if (!country) {
+        $('#test_call_country_other').removeClass('hidden')
+        country = $('#test_call_country_other').val();
+      } else {
+        $('#test_call_country_other').addClass('hidden').val('');
+      }
     },
 
     makeTestCall: function(event) {
@@ -663,27 +798,38 @@ $(document).ready(function () {
       phone = phone.replace("+", "").replace(/\-/g, ''); // remove plus, dash
 
       var location = $('#test_call_location').val();
+      var country = $('#test_call_country').val() || $('#test_call_country_other').val();
+      var record = $('#test_call_record').val();
 
       $.ajax({
         url: '/call/create',
-        data: {campaignId: this.campaignId, userPhone: phone, userLocation: location},
+        data: {campaignId: this.campaignId,
+          userPhone: phone,
+          userLocation: location,
+          userCountry: country,
+          record: record
+        },
         success: function(data) {
-          console.log(data);
           alert('Calling you at '+$('#test_call_number').val()+' now!');
-          if (data.message == 'queued') {
+          if (data.call == 'queued') {
             statusIcon.removeClass('active').addClass('success');
+            $('.form-group.test_call .controls .help-block').removeClass('has-error').text('');
           } else {
-            console.error(data.message);
+            console.error(data);
             statusIcon.addClass('error');
+            $('.form-group.test_call .controls .help-block').addClass('has-error').text(data.responseText);
           }
         },
         error: function(err) {
           console.error(err);
+          statusIcon.addClass('error');
+          var errMessage = err.responseJSON.error || 'unknown error';
+          $('.form-group.test_call .controls .help-block').addClass('has-error').text(errMessage);
         }
       });
     },
 
-    toggleCustomEmbedPanel: function(event) {
+    toggleEmbedPanel: function(event) {
       var formType = $('#embed_type').val();
       if (formType) {
         $('.form-group.embed_code').removeClass('hidden');
@@ -692,18 +838,20 @@ $(document).ready(function () {
       }
 
       if (formType === 'custom' || formType === 'iframe') {
-        $('#custom_embed_options').collapse('show');
+        $('#embed_options').collapse('show');
       } else {
-        $('#custom_embed_options').collapse('hide');
+        $('#embed_options').collapse('hide');
       }
       if (formType === 'iframe') {
-        $('#custom_embed_options h3').text('iFrame Embed Options');
-        $('#custom_embed_options .form-group').hide().filter('.iframe').show();
+        $('#embed_options h3').text('iFrame Embed Options');
+        $('#embed_options .form-group').hide().filter('.iframe').show();
       } else {
-        $('#custom_embed_options h3').text('Custom Embed Options');
-        $('#custom_embed_options .form-group').show();
+        $('#embed_options h3').text('Javascript Embed Options');
+        $('#embed_options .form-group').show();
       }
+
       this.updateEmbedCode();
+      this.updateEmbedScriptDisplay();
     },
 
     updateEmbedCode: function(event) {
@@ -722,7 +870,16 @@ $(document).ready(function () {
           $('textarea#embed_code').val(html);
         }
       });
-    }
+    },
+
+    updateEmbedScriptDisplay: function(event) {
+      var formType = $('#embed_type').val();
+      var scriptDisplay = $('#embed_script_display').val();
+      
+      $('#embed_options .form-group.redirect').toggle(scriptDisplay === 'redirect');
+      $('#embed_options .form-group.custom').toggle(scriptDisplay === 'custom');
+      $('#embed_options .form-group.iframe').toggle(formType === 'iframe');
+    },
 
   });
 
@@ -1117,8 +1274,13 @@ $(document).ready(function () {
       // create file from blob
       if (this.audioBlob) {
         formData.append('file_storage', this.audioBlob);
+        formData.append('file_type', 'mp3');
       } else if (this.filename) {
-        formData.append('file_storage', $('input[type="file"]')[0].files[0]);
+        var fileData = $('input[type="file"]')[0].files[0];
+        formData.append('file_storage', fileData);
+        
+        var fileType = fileData.name.split('.').pop(-1);
+        formData.append('file_type', fileType);
       }
 
       var self = this;
@@ -1153,7 +1315,7 @@ $(document).ready(function () {
           },
           error: function(xhr, status, error) {
             console.error(status, error);
-            window.flashMessage(response.errors, 'error');
+            window.flashMessage(error, 'error');
           }
         });
         this.delegateEvents(); // re-bind the submit handler
@@ -1169,7 +1331,9 @@ $(document).ready(function () {
   CallPower.Routers.Campaign = Backbone.Router.extend({
     routes: {
       "campaign/create": "campaignForm",
+      "campaign/create/:country/:type": "campaignForm",
       "campaign/:id/edit": "campaignForm",
+      "campaign/:id/edit-type": "campaignForm",
       "campaign/:id/copy": "campaignForm",
       "campaign/:id/audio": "audioForm",
       "campaign/:id/launch": "launchForm",
@@ -1213,6 +1377,7 @@ $(document).ready(function () {
       // target search
       'keydown input[name="target-search"]': 'searchKey',
       'focusout input[name="target-search"]': 'searchTab',
+      'click .search-field .dropdown-menu li a': 'searchField',
       'click .search': 'doTargetSearch',
       'click .search-results .result': 'selectSearchResult',
       'click .search-results .close': 'closeSearch',
@@ -1232,94 +1397,155 @@ $(document).ready(function () {
       // otherwise, let user select one
     },
 
-    doTargetSearch: function(event) {
-      var self = this;
-      // search the Sunlight API for the named target
-      var query = $('input[name="target-search"]').val();
-
-      var campaign_type = $('select[name="campaign_type"]').val();
-      var campaign_state = $('select[name="campaign_state"]').val();
-      var chamber = $('select[name="campaign_subtype"]').val();
-
-      if (campaign_type === 'congress') {
-        // hit Sunlight OpenCongress v3
-
-        //convert generic chamber names to House / Senate
-        if (chamber === 'lower') {
-          chamber = 'house';
-        }
-        if (chamber === 'upper') {
-          chamber = 'senate';
-        }
-        if (chamber === 'both') {
-          chamber = '';
-        }
-
-        $.ajax({
-          url: CallPower.Config.SUNLIGHT_CONGRESS_URL,
-          data: {
-            apikey: CallPower.Config.SUNLIGHT_API_KEY,
-            in_office: true,
-            chamber: chamber,
-            query: query
-          },
-          beforeSend: function(jqXHR, settings) { console.log(settings.url); },
-          success: self.renderSearchResults,
-          error: self.errorSearchResults,
-        });
-      }
-
-      if (campaign_type === 'state' && chamber === 'exec') {
-        // search scraped us_governors_contact, pass full json to search on client
-        $.ajax({
-          url: 'https://raw.githubusercontent.com/spacedogXYZ/us_governors_contact/master/data.json',
-          dataType: 'json',
-          success: _.bind(self.clientSideSearch, self),
-          error: self.errorSearchResults,
-        });
-
-      } else {
-        // hit Sunlight OpenStates
-
-        // TODO, request state metadata
-        // display latest_json_date to user
-
-        $.ajax({
-          url: CallPower.Config.SUNLIGHT_STATES_URL,
-          data: {
-            apikey: CallPower.Config.SUNLIGHT_API_KEY,
-            state: campaign_state,
-            in_office: true,
-            chamber: chamber,
-            last_name: query // NB, we can't do generic query for OpenStates, let user select field?
-          },
-          success: self.renderSearchResults,
-          error: self.errorSearchResults,
-        });
-      }
+    searchField: function(event) {
+      event.preventDefault();
+      var selectedField = $(event.currentTarget);
+      $('.search-field button').html(selectedField.text()+' <span class="caret"></span>');
+      $('input[name=search_field]').val(selectedField.attr('id'));
     },
 
-    clientSideSearch: function(response) {
-      var query = $('input[name="target-search"]').val();
+    doTargetSearch: function(event) {
+      var self = this;
 
-      results = _.filter(response, function(item) {
-        // simple case insensitive OR search on first, last or state name
-        if (item.first_name.toLowerCase().includes(query.toLowerCase()) ||
-            item.last_name.toLowerCase().includes(query.toLowerCase()) ||
-            item.state_name.toLowerCase().includes(query.toLowerCase())
-           ) {
-          return true;
+      var campaign_country = $('select[name="campaign_country"]').val();
+      var campaign_type = $('select[name="campaign_type"]').val();
+      var campaign_state = $('select[name="campaign_state"]').val();
+      var search_field = $('input[name=search_field]').val();
+
+      // search the political data cache by default
+      var query = $('input[name="target-search"]').val();
+      var searchURL = '/political_data/search';
+      var searchData = {
+        'country': campaign_country,
+        'key': query // default to full text search
+      };
+
+      if (!search_field) {
+        self.errorSearchResults({status: 'warning', message: 'Select a field to search'});
+        return false;
+      }
+
+      if (query.length < 2) {
+        self.errorSearchResults({status: 'warning', message: 'Search query must be at least two characters long'});
+        return false;
+      }
+
+      if (campaign_country === 'us') {
+        var chamber = $('select[name="campaign_subtype"]').val();
+
+        if (search_field === 'state') {
+          query = query.toUpperCase();
+          if (query.length > 2) {
+            self.errorSearchResults({status: 'danger', message: 'Search by state abbreviation'});
+            return false;
+          }
         }
+
+        if (search_field === 'last_name') {
+          searchData['filter'] = 'last_name='+query;
+          query = ''; // clear query, used as filter value
+        }
+
+        if (campaign_type === 'congress') {
+          // format key by chamber
+          if (chamber === 'lower') {
+              searchData['key'] = 'us:house:'+query;
+          }
+          if (chamber === 'upper') {
+            searchData['key'] = 'us:senate:'+query;
+          }
+          if (chamber === 'both') {
+            // use jQuery param to send multiple values
+            var filter = searchData['filter'];
+            searchData = $.param({
+              'key': ['us:house:'+query, 'us:senate:'+query],
+              'filter': filter
+            }, true);
+          }
+        }
+
+        if (campaign_type === 'state') {
+          if (chamber === 'exec') {
+            // search using our own data
+            searchData['key'] = 'us_state:governor:'+query;
+          } else {
+            // hit OpenStates
+            searchURL = CallPower.Config.SUNLIGHT_STATES_URL;
+            searchData = {
+              apikey: CallPower.Config.SUNLIGHT_API_KEY,
+              state: campaign_state,
+            }
+            if (chamber === 'upper' || chamber === 'lower') {
+              searchData['chamber'] = chamber;
+            } // if both, don't limit to a chamber
+            // query may have been cleared, get value from input
+            searchData[search_field] = $('input[name="target-search"]').val();
+          }
+        }
+      }
+
+      if (campaign_country === 'ca') {
+        var baseURL = CallPower.Config.OPENNORTH_URL;
+        // reset search data to match OpenNorth
+        searchData = {};
+        
+        if (campaign_type === 'parliament') {
+          searchURL = baseURL + 'representatives/house-of-commons/';
+          searchData[search_field] = query;
+        }
+
+        if (campaign_type === 'province') {
+          var CA_PROVINCE_BODIES = {
+            'AB': 'alberta-legislature',
+            'BC': 'bc-legislature',
+            'MB': 'manitoba-legislature',
+            'NB': 'new-brunswick-legislature',
+            'NL': 'newfoundland-labrador-legislature',
+            'NS': 'nova-scotia-legislature',
+            'ON': 'ontario-legislature',
+            'PE': 'pei-legislature',
+            'QC': 'quebec-assemblee-nationale',
+            'SK': 'saskatchewan-legislature',
+           }
+          searchURL = baseURL + 'representatives/'+CA_PROVINCE_BODIES[campaign_state];
+          searchData[search_field] = query;
+        }
+      }
+
+      $.ajax({
+        url: searchURL,
+        data: searchData,
+        success: self.renderSearchResults,
+        error: self.errorSearchResults,
+        beforeSend: function(jqXHR, settings) { console.log(settings.url); },
       });
-      return this.renderSearchResults(results);
+
+      // start spinner
+      $('.btn.search .spin').css('display', 'inline-block');
+      $('.btn.search .text').hide();
+      $('.btn.search').attr('disabled','disabled');
+      return true;
     },
 
     renderSearchResults: function(response) {
+      // stop spinner
+      $('#target-search .glyphicon.spin').hide();
+      $('.btn.search .text').show();
+      $('.btn.search').removeAttr('disabled');
+
+      // clear existing results, errors
+      $('.search-results .dropdown-menu').empty();
+      $('.form-group#set-targets .search-help-block').empty();
+
       var results;
       if (response.results) {
         results = response.results;
-      } else {
-        // openstates doesn't paginate
+      } if (response.objects) {
+        // open north returns meta
+        results = response.objects;
+      }
+
+      if (!results) {
         results = response;
       }
 
@@ -1332,6 +1558,7 @@ $(document).ready(function () {
         // standardize office titles
         if (person.title === 'Sen')  { person.title = 'Senator'; }
         if (person.title === 'Rep')  { person.title = 'Representative'; }
+        if (person.elected_office === 'MP')  { person.title = 'MP'; }
 
         if (person.bioguide_id) {
           person.uid = 'us:bioguide:'+person.bioguide_id;
@@ -1339,25 +1566,35 @@ $(document).ready(function () {
           person.uid = 'us_state:openstates:'+person.leg_id;
         } else if (person.title === 'Governor') {
           person.uid = 'us_state:governor:'+person.state
+        } else if (person.related && person.related.boundary_url) {
+          var boundary_url = person.related.boundary_url.replace('/boundaries/', '/');
+          person.uid = boundary_url;
         }
 
-        // if person has multiple phones, use only the first office
-        if (person.phone === undefined && person.offices) {
-          if (person.offices) {
-            person.phone = person.offices[0].phone;
+        // render the main office
+        if (person.phone || person.tel) {
+          var li = renderTemplate("#search-results-item-tmpl", person);
+          dropdownMenu.append(li);
+        }
+
+        // then any others
+        _.each(person.offices, function(office) {
+          if (office.phone || office.tel) {
+            person.phone = office.phone || office.tel;
+            person.office_name = office.name || office.city || office.type;
+            var li = renderTemplate("#search-results-item-tmpl", person);
+            dropdownMenu.append(li);
           }
-        }
-
-        // render display
-        var li = renderTemplate("#search-results-item-tmpl", person);
-        dropdownMenu.append(li);
+        });
       });
       $('.input-group .search-results').append(dropdownMenu);
     },
 
     errorSearchResults: function(response) {
-      // TODO: show bootstrap warning panel
-      console.log(response);
+      var error_panel = $('<div class="alert alert-'+response.status+'">'+
+                          '<button type="button" class="close" data-dismiss="alert">×</button>'+
+                          response.message+'</div>');
+      $('.form-group#set-targets .search-help-block').html(error_panel);
     },
 
     closeSearch: function() {

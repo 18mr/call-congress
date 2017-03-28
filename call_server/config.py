@@ -8,6 +8,7 @@ class DefaultConfig(object):
     DEBUG = False
     TESTING = False
     ENVIRONMENT = "Default"
+    VERSION = "1.2.2"
 
     APP_NAME = "call_server"
     APPLICATION_ROOT = None  # the path where the application is configured
@@ -112,7 +113,7 @@ class HerokuConfig(ProductionConfig):
     # cache via heroku-redis
     CACHE_TYPE = 'redis'
     CACHE_REDIS_URL = os.environ.get('REDIS_URL')
-    CACHE_KEY_PREFIX = 'call-power'
+    CACHE_KEY_PREFIX = 'call-power:'
 
     # smtp via sendgrid
     MAIL_SERVER = 'smtp.sendgrid.net'
@@ -124,8 +125,12 @@ class HerokuConfig(ProductionConfig):
 
 class DevelopmentConfig(DefaultConfig):
     DEBUG = True
-    DEBUG_INFO = False
+    DEBUG_INFO = True
     TESTING = False
+
+    CACHE_TYPE = 'redis'
+    CACHE_REDIS_URL = 'redis://localhost:6379'
+    CACHE_KEY_PREFIX = 'call-power:'
 
     ENVIRONMENT = "Development"
 
@@ -153,5 +158,5 @@ class TestingConfig(DefaultConfig):
     TESTING = True
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = 'sqlite://'  # keep testing db in memory
-    CACHE_TYPE = 'null'
+    CACHE_TYPE = 'simple'
     CACHE_NO_NULL_WARNING = True

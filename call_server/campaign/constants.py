@@ -1,53 +1,3 @@
-# Campaign types
-TYPE_EXECUTIVE = 'executive'
-TYPE_CONGRESS = 'congress'
-TYPE_STATE = 'state'
-TYPE_LOCAL = 'local'
-TYPE_CUSTOM = 'custom'
-
-TARGET_EXECUTIVE = 'exec'
-TARGET_OFFICE = 'office'
-TARGET_CHAMBER_BOTH = 'both'
-TARGET_CHAMBER_UPPER = 'upper'
-TARGET_CHAMBER_LOWER = 'lower'
-
-CAMPAIGN_CHOICES = (
-    ('', ''),
-    (TYPE_EXECUTIVE, 'Executive'),
-    (TYPE_CONGRESS, 'Congress'),
-    (TYPE_STATE, 'State'),
-    (TYPE_LOCAL, 'Local'),
-    (TYPE_CUSTOM, 'Custom'),
-)
-CAMPAIGN_NESTED_CHOICES = (
-    ('', ''),
-    (TYPE_EXECUTIVE, (
-        (TARGET_EXECUTIVE, 'President'),
-        (TARGET_OFFICE, 'Office')
-    )),
-    (TYPE_CONGRESS, (
-        (TARGET_CHAMBER_BOTH, 'Both Bodies'),
-        (TARGET_CHAMBER_UPPER, 'Senate Only'),
-        (TARGET_CHAMBER_LOWER, 'House Only')
-    )),
-    (TYPE_STATE, (
-        (TARGET_EXECUTIVE, 'Governor'),
-        (TARGET_CHAMBER_BOTH, 'Legislature - Both Bodies'),
-        (TARGET_CHAMBER_UPPER, 'Legislature - Upper Body'),
-        (TARGET_CHAMBER_LOWER, 'Legislature - Lower Body')
-    )),
-    (TYPE_LOCAL, ()),
-    (TYPE_CUSTOM, ()),
-)
-
-# these types of campaigns cannot be looked up via api
-# default to the custom target interface
-CUSTOM_CAMPAIGN_CHOICES = [
-    'executive.office',
-    'local',
-    'custom'
-]
-
 SEGMENT_BY_LOCATION = 'location'
 SEGMENT_BY_CUSTOM = 'custom'
 SEGMENT_BY_CHOICES = (
@@ -67,15 +17,14 @@ LOCATION_CHOICES = (
     (LOCATION_DISTRICT, 'District')
 )
 
-ORDER_IN_ORDER = 'in-order'
-ORDER_SHUFFLE = 'shuffle'
-ORDER_UPPER_FIRST = 'upper-first'
-ORDER_LOWER_FIRST = 'lower-first'
-ORDERING_CHOICES = (
-    (ORDER_IN_ORDER, 'In Order'),
-    (ORDER_SHUFFLE, 'Shuffle'),
-    (ORDER_UPPER_FIRST, 'Senate First'),
-    (ORDER_LOWER_FIRST, 'House First'),
+TARGET_OFFICE_DISTRICT = 'district'
+TARGET_OFFICE_BUSY = 'busy'
+# TARGET_OFFICE_CLOSEST = 'closest'
+TARGET_OFFICE_CHOICES = (
+    ('', 'Default'),
+    (TARGET_OFFICE_DISTRICT, 'District'),
+    # (TARGET_OFFICE_BUSY, 'Main Busy'),
+    # (TARGET_OFFICE_CLOSEST, 'Closest'),
 )
 
 STATUS_ARCHIVED = 0
@@ -90,13 +39,15 @@ CAMPAIGN_STATUS = {
 EMBED_FORM_CHOICES = (
     ('', 'None'),
     ('iframe', 'iFrame'),
-    ('custom', 'Custom'),
+    ('custom', 'Javascript'),
 )
 
 EMBED_SCRIPT_DISPLAY = (
     ('', 'None'),
     ('overlay', 'Overlay'),
+    ('alert', 'Alert'),
     ('replace', 'Replace Form'),
+    ('redirect', 'Redirect URL'),
     ('custom', 'Custom')
 )
 
@@ -106,3 +57,25 @@ EMPTY_CHOICES = {'': ''}
 
 STRING_LEN = 100
 TWILIO_SID_LENGTH = 34
+
+# from https://www.twilio.com/docs/api/twiml/say#attributes-alice
+# enable more when we get political data for other countries
+LANGUAGE_CHOICES = (
+    # ('da', 'Danish'),
+    # ('de', 'German'),
+    ('en', 'English'),
+    # ('ca', 'Catalan'),
+    ('es', 'Spanish'),
+    # ('fi', 'Finnish'),
+    ('fr', 'French'),
+    # ('it', 'Italian'),
+    # ('ja', 'Japanese'),
+    # ('ko', 'Korean'),
+    # ('no', 'Norwegian'),
+    # ('nl', 'Dutch'),
+    # ('pl', 'Polish'),
+    # ('pt', 'Portuguese'),
+    # ('ru', 'Russian'),
+    # ('sv', 'Swedish'),
+    # ('zh', 'Chinese'),
+)

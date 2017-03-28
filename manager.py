@@ -39,7 +39,9 @@ def runserver(external=None):
         app.config['SERVER_NAME'] = external
         app.config['STORE_DOMAIN'] = "http://" + external # needs to have scheme, so urlparse is fully absolute
         print "serving from %s" % app.config['SERVER_NAME']
+    print "loading political data..."
     political_data.load_data(cache)
+    print "done"
 
     host = (os.environ.get('APP_HOST') or '127.0.0.1')
     app.run(debug=True, use_reloader=True, host=host)
@@ -63,6 +65,17 @@ def loadpoliticaldata():
     if app.config.get('ENVIRONMENT') is "Heroku":
         print "don't worry about the KeyError"
         # http://stackoverflow.com/questions/8774958/keyerror-in-module-threading-after-a-successful-py-test-run/12639040#12639040
+
+@manager.command
+def redis_clear():
+    print "This will entirely clear the Redis cache"
+    confirm = raw_input('Confirm (Y/N): ')
+    if confirm == 'Y':
+        with app.app_context():
+            cache.cache._client.flushdb()
+        print "redis cache cleared"
+    else:
+        print "exit"
 
 @manager.command
 def alembic():
