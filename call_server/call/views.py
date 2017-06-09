@@ -12,10 +12,12 @@ from ..extensions import csrf, db
 
 from .models import Call, Session
 from .constants import TWILIO_TTS_LANGUAGES
-from ..campaign.constants import (LOCATION_POSTAL, LOCATION_DISTRICT, SEGMENT_BY_LOCATION,
+from ..campaign.constants import (LOCATION_POSTAL, LOCATION_DISTRICT,
+    SEGMENT_BY_LOCATION, SEGMENT_BY_CUSTOM,
     TARGET_OFFICE_DISTRICT, TARGET_OFFICE_BUSY)
 from ..campaign.models import Campaign, Target
 from ..political_data.lookup import locate_targets
+from ..political_data.geocode import LocationError
 
 from .decorators import crossdomain, abortJSON, stripANSI
 
@@ -172,12 +174,20 @@ def make_calls(params, campaign):
     resp = twilio.twiml.Response()
 
     if not params['targetIds']:
-        # check if campaign target_set specified
-        if campaign.target_set:
+        # check if campaign custom segmenting specified
+        if campaign.segment_by == SEGMENT_BY_CUSTOM:
             params['targetIds'] = [t.uid for t in campaign.target_set]
         elif campaign.segment_by == SEGMENT_BY_LOCATION:
             # lookup targets for campaign type by segment, put in desired order
-            params['targetIds'] = locate_targets(params['userLocation'], campaign=campaign)
+            try:
+                params['targetIds'] = locate_targets(params['userLocation'], campaign=campaign)
+                # locate_targets will include from special target_set if specified in campaign.include_special
+            except LocationError, e:
+                current_app.logger.error('Unable to locate_targets for %(userLocation)s in %(userCountry)s' % params)
+                params['targetIds'] = []
+        else:
+            current_app.logger.error('Unknown segment_by for campaign %(campaignId)s' % params)
+            params['targetIds'] = []
     else:
         # targetIds already set by /create
         pass
@@ -187,12 +197,6 @@ def make_calls(params, campaign):
             location=params['userLocation'],
             lang=campaign.language_code)
         resp.hangup()
-
-    if campaign.target_ordering == 'shuffle':
-        # reshuffle for each caller
-        # FIXME: Hard-coded special case. This should be implemented somewhere
-        #        in call_server/political_data/countries.
-        random.shuffle(params['targetIds'])
 
     # limit calls to maximum number
     if campaign.call_maximum:
@@ -290,7 +294,7 @@ def create():
         else:
             script = ''
             redirect = ''
-        result = jsonify(campaign=campaign.status, call=call.status, script=script, redirect=redirect)
+        result = jsonify(campaign=campaign.status, call=call.status, script=script, redirect=redirect, fromNumber=from_number)
         result.status_code = 200 if call.status != 'failed' else 500
     except TwilioRestException, err:
         twilio_error = stripANSI(err.msg)
@@ -359,15 +363,16 @@ def location_parse():
 
     location = request.values.get('Digits', '')
 
-    # Override location method so locate_targets knows we're passing a zip
+    # Override locate_by attribute so locate_targets knows we're passing a zip
     # This allows call-ins to be made for campaigns which otherwise use district locate_by
     campaign.locate_by = LOCATION_POSTAL
-    target_ids = locate_targets(location, campaign)
+    # Skip special, because at this point we just want to know if the zipcode is valid
+    located_target_ids = locate_targets(location, campaign, skip_special=True)
 
     if current_app.debug:
         current_app.logger.debug(u'entered = {}'.format(location))
 
-    if not target_ids:
+    if not located_target_ids:
         resp = twilio.twiml.Response()
         play_or_say(resp, campaign.audio('msg_unparsed_location'),
             lang=campaign.language_code)
@@ -375,7 +380,6 @@ def location_parse():
         return location_gather(resp, params, campaign)
 
     params['userLocation'] = location
-    params['targetIds'] = target_ids
 
     return make_calls(params, campaign)
 
@@ -404,22 +408,26 @@ def make_single():
             lang=campaign.language_code)
         return str(resp)
 
-    if campaign.target_offices == TARGET_OFFICE_DISTRICT:
-        office = random.choice(current_target.offices)
-        target_phone = office.number
-    elif campaign.target_offices == TARGET_OFFICE_BUSY:
-        # TODO keep track of which ones we have tried
-        undialed_offices = current_target.offices
-        # then pick a random one
-        office = random.choice(undialed_offices)
-        target_phone = office.number
-    #elif campaign.target_offices == TARGET_OFFICE_CLOSEST:
-    #   office = find_closest(current_target.offices, params['userLocation'])
-    #   target_phone = office.phone
+    if current_target.offices:
+        if campaign.target_offices == TARGET_OFFICE_DISTRICT:
+            office = random.choice(current_target.offices)
+            target_phone = office.number
+        elif campaign.target_offices == TARGET_OFFICE_BUSY:
+            # TODO keep track of which ones we have tried
+            undialed_offices = current_target.offices
+            # then pick a random one
+            office = random.choice(undialed_offices)
+            target_phone = office.number
+        #elif campaign.target_offices == TARGET_OFFICE_CLOSEST:
+        #   office = find_closest(current_target.offices, params['userLocation'])
+        #   target_phone = office.phone
+        else:
+            office = None
+            target_phone = current_target.number
     else:
         office = None
         target_phone = current_target.number
-
+        
     play_or_say(resp, campaign.audio('msg_target_intro'),
         title=current_target.title,
         name=current_target.name,

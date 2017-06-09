@@ -11,17 +11,44 @@ def adapt_by_key(key):
     elif key.startswith("ca:opennorth"):
         return OpenNorthAdapter()
     else:
-        return data
+        return DataAdapter()
     # TODO add for other countries
 
 
-class UnitedStatesData(object):
+class DataAdapter(object):
+    def __init__(self, **kwargs):
+        pass
+
+    def key(self, key, split_by='-'):
+        """
+        @return a key and suffix, split by an optional delimiter
+        """
+        if split_by in key:
+            return key.split(split_by)
+        else:
+            return (key, '')
+
     def target(self, data):
-        return {       
+        return data
+
+    def offices(self, data):
+        return [data]
+
+
+class UnitedStatesData(DataAdapter):
+    def key(self, key):
+        # split district office id from rest of bioguide
+        if '-' in key:
+            return key.split('-')
+        else:
+            return (key, '')
+
+    def target(self, data):
+        return {
             'name': u'{first_name} {last_name}'.format(**data),
-            'number': data['phone'], # DC office number
-            'title': data['title'],
-            'uid': data['bioguide_id']
+            'number': data.get('phone', ''), # DC office number
+            'title': data.get('title', ''),
+            'uid': data.get('bioguide_id', '')
         }
 
     def offices(self, data):
@@ -31,24 +58,45 @@ class UnitedStatesData(object):
             if not office['phone']:
                 continue
             office_data = {
-                'name': office['city'],
-                'address': u'{address} {building} {city} {state}'.format(**office),
-                'number': office['phone']
+                'name': office.get('city', ''),
+                'number': office.get('phone', ''),
+                'uid': office.get('id', '')
             }
+            if 'city' in office and 'state' in office:
+                if 'address' in office and 'building' in office:
+                    office_data['address'] = u'{address} {building} {city} {state}'.format(**office)
+                elif 'address' in office:
+                    office_data['address'] = u'{address} {city} {state}'.format(**office)
+                else:
+                    office_data['address'] = u'{city} {state}'.format(**office)
+            else:
+                office_data['address'] = ''
+
             if 'latitude' in office and 'longitude' in office:
-                office_data['location'] = 'POINT({latitude}, {longitude})'.format(**office),
+                office_data['location'] = 'POINT({latitude}, {longitude})'.format(**office)
             office_list.append(office_data)
         return office_list
 
-
-class OpenStatesData(object):
+class OpenStatesData(DataAdapter):
     def target(self, data):
-        return {
-            'name': data['full_name'],
-            'title': 'Senator' if data['chamber'] == "upper" else "Represenatative",
-            'number': filter(lambda d: d['type'] == 'capitol', data['offices'])[0].get('phone', None),
-            'uid': data['leg_id']
+        adapted = {
+            'title': 'Senator' if data['chamber'] == "upper" else "Representative",
+            'uid': data.get('leg_id', '')
         }
+        if data.get('first_name') and data.get('last_name'):
+            adapted['name'] = u'{first_name} {last_name}'.format(**data)
+        elif data.get('full_name'):
+            adapted['name'] = data['full_name']
+
+        # default to capitol office
+        for office in data['offices']:
+            if office.get('type') == 'capitol':
+                adapted['number'] = office.get('phone', '')
+        # if none, try first
+        if not 'number' in adapted:
+            adapted['number'] = data.get('offices',[{}])[0].get('phone', '')
+            # fallback to none
+        return adapted
 
     def offices(self, data):
         office_list = []
@@ -59,31 +107,35 @@ class OpenStatesData(object):
             if not office['phone']:
                 continue
             office_list.append({
-                'name': office['name'],
-                'address': office['address'],
-                'number': office['phone']
+                'name': office.get('name', ''),
+                'address': office.get('address', ''),
+                'number': office.get('phone', '')
             })
         return office_list
 
 
-class GovernorAdapter(object):
+class GovernorAdapter(DataAdapter):
     def target(self, data):
         return {
             'name': u'{first_name} {last_name}'.format(**data),
-            'title': data['title'],
-            'number': data['phone'],
-            'uid': data['state'],
+            'title': data.get('title', ''),
+            'number': data.get('phone', ''),
+            'uid': data.get('state', ''),
         }
 
 
-class OpenNorthAdapter(object):
+class OpenNorthAdapter(DataAdapter):
+    def key(self, key, split_by=None):
+        # override default key split behavior, because we need to use district names which may have dashes
+        return (key, '')
+
     def target(self, data):
         return {
             'name': u'{first_name} {last_name}'.format(**data),
-            'title': data['elected_office'],
-            'number': filter(lambda d: d['type'] == 'legislature', data['offices'])[0].get('tel', None),
+            'title': data.get('elected_office', ''),
+            'number': filter(lambda d: d['type'] == 'legislature', data['offices'])[0].get('tel', ''),
             # legislature office number
-            'uid': data['cache_key']
+            'uid': data.get('cache_key', '')
         }
 
     def offices(self, data):
@@ -95,9 +147,8 @@ class OpenNorthAdapter(object):
             if not office['tel']:
                 continue
             office_list.append({
-                'name': office['type'],
-                'address': office['postal'],
-                'number': office['tel']
+                'name': office.get('type', ''),
+                'address': office.get('postal', ''),
+                'number': office.get('tel', '')
             })
         return office_list
-

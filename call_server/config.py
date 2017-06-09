@@ -8,7 +8,7 @@ class DefaultConfig(object):
     DEBUG = False
     TESTING = False
     ENVIRONMENT = "Default"
-    VERSION = "1.2.2"
+    VERSION = "1.3-beta1"
 
     APP_NAME = "call_server"
     APPLICATION_ROOT = None  # the path where the application is configured
@@ -96,7 +96,7 @@ class ProductionConfig(DefaultConfig):
         # http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
         # use path-style urls, in case bucket name is DNS incompatible (uses periods, or mixed case
         # http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html
-        if STORE_S3_REGION is 'us-east-1':
+        if STORE_S3_REGION == 'us-east-1':
             STORE_DOMAIN = 'https://s3.amazonaws.com/%s/' % (STORE_S3_BUCKET)
         else:
             STORE_DOMAIN = 'https://s3-%s.amazonaws.com/%s/' % (STORE_S3_REGION, STORE_S3_BUCKET)
@@ -142,6 +142,8 @@ class DevelopmentConfig(DefaultConfig):
 
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI',
         'sqlite:////%s/dev.db' % os.path.abspath(os.curdir))
+    # four slashes for an absolute path
+    # per http://docs.sqlalchemy.org/en/latest/core/engines.html#sqlite
 
     SERVER_NAME = 'localhost:5000'
     STORE_PATH = '%s/instance/uploads/' % os.path.abspath(os.curdir)

@@ -422,7 +422,11 @@ $(document).ready(function () {
       'change select#campaign_subtype':  'changeCampaignSubtype',
       'change input[name="segment_by"]': 'changeSegmentBy',
 
-      // call limit
+      // include special
+      'change input[name="show_special"]': 'showSpecial',
+      'change select[name="include_special"]': 'changeIncludeSpecial',
+
+      // call limits
       'change input[name="call_limit"]': 'changeCallLimit',
 
       // phone numbers
@@ -446,6 +450,7 @@ $(document).ready(function () {
       this.changeCampaignCountry();
       this.changeCampaignType();
       this.changeSegmentBy();
+      this.changeIncludeSpecial();
 
       if ($('input[name="call_maximum"]').val()) {
         $('input[name="call_limit"]').attr('checked', 'checked');
@@ -515,7 +520,7 @@ $(document).ready(function () {
           // hide target_offices
           $('.form-group.target_offices').hide();
         } else {
-          // congress
+          // legislative, show segmenting and search
           $('.form-group.segment_by').show();
           $('.form-group.locate_by').show();
           $('.form-group.target_offices').show();
@@ -603,8 +608,37 @@ $(document).ready(function () {
 
       if (segment_by === 'custom') {
         $('#set-targets').show();
+        $('.form-group.special_targets').hide();
       } else {
         $('#set-targets').hide();
+        $('.form-group.special_targets').show();
+        this.showSpecial();
+      }
+    },
+
+    showSpecial: function(event) {
+      var specialGroup = $('select[name="include_special"]').parents('.input-group');
+      if ($('input[name="show_special"]').prop('checked')) {
+        specialGroup.show();
+        $('#set-targets').show();
+      } else {
+        specialGroup.hide();
+        $('#set-targets').hide();
+        $('select[name="include_special"]').val('').trigger('change');
+      }
+    },
+
+    changeIncludeSpecial: function() {
+      var include_special = $('select[name="include_special"]').val();
+
+      if (include_special === 'only') {
+        // target_ordering can only be 'in order' or 'shuffle'
+        $('input[name="target_ordering"][value="upper-first"]').parent('label').hide();
+        $('input[name="target_ordering"][value="lower-first"]').parent('label').hide();
+      } else {
+        // target_ordering can be chamber dependent
+        $('input[name="target_ordering"][value="upper-first"]').parent('label').show();
+        $('input[name="target_ordering"][value="lower-first"]').parent('label').show();
       }
     },
 
@@ -688,13 +722,22 @@ $(document).ready(function () {
       }
     },
 
+    validateSpecialTargets: function(f) {
+      // if show_special checked, ensure we also have include_special set
+      if ($('input#show_special:checked').val()) {
+        return !!$('select#include_special').val();
+      } else {
+        return true;
+      }
+    },
+
     validateSelected: function(formGroup) {
       return !!$('select option:selected', formGroup).length;
     },
 
     validateField: function(formGroup, validator, message) {
       // first check to see if formGroup is present
-      if (!!formGroup) {
+      if (!formGroup.length) {
         return true;
       }
 
@@ -730,6 +773,7 @@ $(document).ready(function () {
       
       // campaign targets
       isValid = this.validateField($('.form-group#set-targets'), this.validateTargetList, 'Add a custom target') && isValid;
+      isValid = this.validateField($('.form-group.special_targets'), this.validateSpecialTargets, 'Please pick an order for Special Targets') && isValid;
 
       // phone numbers
       isValid = this.validateField($('.form-group.phone_number_set'), this.validateSelected, 'Select a phone number') && isValid;
@@ -1243,6 +1287,10 @@ $(document).ready(function () {
         return !!self.filename;
       }, 'Please select a file to upload') && isValid;
 
+      isValid = this.validateField($('.tab-pane.active#upload'), function() {
+        return _.includes(['mp3','wav','aif','aiff','gsm','ulaw'], self.filetype.toLowerCase());
+      }, 'Uploaded file must be an MP3 or WAV. M4A or iPhone Voice Memos will not play back.') && isValid;
+
       isValid = this.validateField($('.tab-pane.active#text-to-speech'), function() {
         return !!self.textToSpeech;
       }, 'Please enter text to read') && isValid;
@@ -1281,6 +1329,7 @@ $(document).ready(function () {
         
         var fileType = fileData.name.split('.').pop(-1);
         formData.append('file_type', fileType);
+        this.filetype = fileType;
       }
 
       var self = this;
@@ -1560,12 +1609,16 @@ $(document).ready(function () {
         if (person.title === 'Rep')  { person.title = 'Representative'; }
         if (person.elected_office === 'MP')  { person.title = 'MP'; }
 
+        var uid_prefix = '';
         if (person.bioguide_id) {
-          person.uid = 'us:bioguide:'+person.bioguide_id;
+          uid_prefix = 'us:bioguide:';
+          person.uid = uid_prefix+person.bioguide_id;
         } else if (person.leg_id) {
-          person.uid = 'us_state:openstates:'+person.leg_id;
+          uid_prefix = 'us_state:openstates:';
+          person.uid = uid_prefix+person.leg_id;
         } else if (person.title === 'Governor') {
-          person.uid = 'us_state:governor:'+person.state
+          uid_prefix = 'us_state:governor:';
+          person.uid = uid_prefix+person.state
         } else if (person.related && person.related.boundary_url) {
           var boundary_url = person.related.boundary_url.replace('/boundaries/', '/');
           person.uid = boundary_url;
@@ -1579,10 +1632,15 @@ $(document).ready(function () {
 
         // then any others
         _.each(person.offices, function(office) {
+          // normalize fields to person
           if (office.phone || office.tel) {
-            person.phone = office.phone || office.tel;
-            person.office_name = office.name || office.city || office.type;
-            var li = renderTemplate("#search-results-item-tmpl", person);
+            office.title = person.title;
+            office.first_name = person.first_name;
+            office.last_name = person.last_name;
+            office.uid = person.uid+(office.id || '');
+            office.phone = office.phone || office.tel;
+            office.office_name = office.name || office.city || office.type;
+            var li = renderTemplate("#search-results-item-tmpl", office);
             dropdownMenu.append(li);
           }
         });
@@ -1602,11 +1660,15 @@ $(document).ready(function () {
     },
 
     selectSearchResult: function(event) {
+      // get reference to collection from global
+      var collection = CallPower.campaignForm.targetListView.collection;
+
       // pull json data out of data-object attr
       var obj = $(event.target).data('object');
-      
-      // add it to the targetListView collection
-      CallPower.campaignForm.targetListView.collection.add(obj);
+      // force to appear at the end of the list
+      obj.order = collection.length;
+      // add it to the collection, triggers render and recalculateOrder
+      collection.add(obj);
 
       // if only one result, closeSearch
       if ($('.search-results .dropdown-menu').children('.result').length <= 1) {
@@ -1640,7 +1702,6 @@ $(document).ready(function () {
       this.$el.on('changeDate', _.debounce(this.renderChart, this));
 
       this.chartOpts = {
-        stacked: true,
         discrete: true,
         library: {
           canvasDimensions:{ height:250},
@@ -1653,14 +1714,21 @@ $(document).ready(function () {
           yAxis: { allowDecimals: false, min: null },
         }
       };
-      this.campaignDataTemplate = _.template($('#campaign-data-tmpl').html(), { 'variable': 'data' });
+      this.summaryDataTemplate = _.template($('#summary-data-tmpl').html(), { 'variable': 'data' });
       this.targetDataTemplate = _.template($('#target-data-tmpl').html(), { 'variable': 'targets'});
+
+      this.renderChart();
     },
 
     changeCampaign: function(event) {
       var self = this;
 
       this.campaignId = $('select[name="campaigns"]').val();
+      if (!this.campaignId) {
+        self.renderChart();
+        $('#summary_data').hide();
+        return;
+      }
       $.getJSON('/api/campaign/'+this.campaignId+'/stats.json',
         function(data) {
           if (data.sessions_completed && data.sessions_started) {
@@ -1673,8 +1741,8 @@ $(document).ready(function () {
           if (!data.sessions_completed) {
             data.calls_per_session = 'n/a';
           }
-          $('#campaign_data').html(
-            self.campaignDataTemplate(data)
+          $('#summary_data').html(
+            self.summaryDataTemplate(data)
           ).show();
 
           if (data.date_start && data.date_end) {
@@ -1688,10 +1756,6 @@ $(document).ready(function () {
     renderChart: function(event) {
       var self = this;
 
-      if (!this.campaignId) {
-        return false;
-      }
-
       var timespan = $('select[name="timespan"]').val();
       var start = new Date($('input[name="start"]').datepicker('getDate')).toISOString();
       var end = new Date($('input[name="end"]').datepicker('getDate')).toISOString();
@@ -1703,7 +1767,11 @@ $(document).ready(function () {
         $('.input-daterange input').removeClass('error');
       }
 
-      var chartDataUrl = '/api/campaign/'+this.campaignId+'/date_calls.json?timespan='+timespan;
+      if (this.campaignId) {
+        var chartDataUrl = '/api/campaign/'+this.campaignId+'/date_calls.json?timespan='+timespan;
+      } else {
+        var chartDataUrl = '/api/campaign/date_calls.json?timespan='+timespan;
+      }
       if (start) {
         chartDataUrl += ('&start='+start);
       }
@@ -1711,33 +1779,74 @@ $(document).ready(function () {
         chartDataUrl += ('&end='+end);
       }
 
-      $('#calls_for_campaign').html('loading');
+      $('#chart_display').html('loading');
       $.getJSON(chartDataUrl, function(data) {
-        // api data is by date, map to series by status
-        var DISPLAY_STATUS = ['completed', 'busy', 'failed', 'no-answer', 'canceled', 'unknown'];
-        series = _.map(DISPLAY_STATUS, function(status) { 
-          var s = _.map(data, function(value, date) {
-            return [date, value[status]];
+        if (self.campaignId) {
+          // calls for this campaign by date, map to series by status
+          var DISPLAY_STATUS = ['completed', 'busy', 'failed', 'no-answer', 'canceled', 'unknown'];
+          series = _.map(DISPLAY_STATUS, function(status) { 
+            var s = _.map(data.objects, function(value, date) {
+              return [date, value[status]];
+            });
+            return {'name': status, 'data': s };
           });
-          return {'name': status, 'data': s };
+          // chart as stacked columns
+          var chartOpts = _.extend(self.chartOpts, {stacked: true});
+          self.chart = new Chartkick.ColumnChart('chart_display', series, chartOpts);
+        } else {
+          // all calls for timespan
+          // get campaigns.json to match series labels
+          $.getJSON('/api/campaigns.json', function(campaigns) {
+            series = _.map(campaigns.objects, function(campaign_name, campaign_id) {
+              var s = _.map(data.objects, function(value, date) {
+                if (value[campaign_id]) {
+                  return [date, value[campaign_id]];
+                }
+              });
+              // compact to remove falsy values
+              return {'name': campaign_name, 'data': _.compact(s) };
+            });
+            // filter out series that have no data
+            var seriesFiltered = _.filter(series, function(line) {
+              return line.data.length
+            })
+
+            if (seriesFiltered.length) {
+              // chart as curved lines
+              var chartOpts = _.extend(self.chartOpts, {curve: true});
+              self.chart = new Chartkick.LineChart('chart_display', seriesFiltered, chartOpts);
+            } else {
+              $('#chart_display').html('no data to display. adjust dates or campaigns');
+            }
+
+            if (data.meta) {
+              $('#summary_data').html(
+                self.summaryDataTemplate(data.meta)
+              ).show();
+            }
+          });
+        }
+      });
+
+      if (this.campaignId) {
+        // table data for calls per target
+        var tableDataUrl = '/api/campaign/'+this.campaignId+'/target_calls.json?';
+        if (start) {
+          tableDataUrl += ('&start='+start);
+        }
+        if (end) {
+          tableDataUrl += ('&end='+end);
+        }
+
+        $('table#table_data').html('loading');
+        $.getJSON(tableDataUrl, function(data) {
+          var content = self.targetDataTemplate(data.objects);
+          $('table#table_data').html(content);
+          $('#table_display').show();
         });
-        self.chart = new Chartkick.ColumnChart('calls_for_campaign', series, self.chartOpts);
-      });
-
-      var tableDataUrl = '/api/campaign/'+this.campaignId+'/target_calls.json?';
-      if (start) {
-        tableDataUrl += ('&start='+start);
+      } else {
+        $('#table_display').hide()
       }
-      if (end) {
-        tableDataUrl += ('&end='+end);
-      }
-
-      $('table#target_data').html('loading');
-      $.getJSON(tableDataUrl, function(data) {
-        var content = self.targetDataTemplate(data);
-        $('table#target_data').html(content);
-        $('#target_counts').show();
-      });
     }
 
   });
@@ -1982,7 +2091,8 @@ $(document).ready(function () {
     onAdd: function() {
       // create new empty item
       var item = this.collection.add({
-        uid: this.shortRandomString('custom:', 6)
+        uid: this.shortRandomString('custom:', 6),
+        order: this.collection.length
       });
       this.recalculateOrder(this);
     },

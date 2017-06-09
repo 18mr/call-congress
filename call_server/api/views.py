@@ -56,6 +56,82 @@ def configure_restless(app):
 # non CRUD-routes
 # protect with decorator
 
+# simple campaign names
+@api.route('/campaigns.json', methods=['GET'])
+@api_key_or_auth_required
+def campaign_list():
+    campaigns = Campaign.query.all()
+    data = {}
+    for campaign in campaigns:
+        data[campaign.id] = campaign.name
+    return jsonify({'count': len(data), 'objects': data})
+
+# overall campaigns call by date
+@api.route('/campaign/date_calls.json', methods=['GET'])
+@api_key_or_auth_required
+def campaigns_overall():
+    start = request.values.get('start')
+    end = request.values.get('end')
+    timespan = request.values.get('timespan', 'day')
+
+    if timespan not in API_TIMESPANS.keys():
+        abort(400, 'timespan should be one of %s' % ','.join(API_TIMESPANS))
+    else:
+        timespan_strf = API_TIMESPANS[timespan]
+
+    timespan_extract = extract(timespan, Call.timestamp).label(timespan)
+
+    query = (
+        db.session.query(
+            func.min(Call.timestamp.label('date')),
+            Call.campaign_id,
+            timespan_extract,
+            func.count(distinct(Call.id)).label('calls_count')
+        )
+        .group_by(Call.campaign_id)
+        .group_by(timespan_extract)
+        .order_by(timespan)
+    )
+
+    completed_query = db.session.query(
+        Call.timestamp, Call.id
+    ).filter_by(
+        status='completed'
+    )
+
+    if start:
+        try:
+            startDate = dateutil.parser.parse(start)
+        except ValueError:
+            abort(400, 'start should be in isostring format')
+        query = query.filter(Call.timestamp >= startDate)
+        completed_query = completed_query.filter(Call.timestamp >= startDate)
+
+    if end:
+        try:
+            endDate = dateutil.parser.parse(end)
+            if endDate < startDate:
+                abort(400, 'end should be after start')
+            if endDate == startDate:
+                endDate = startDate + timedelta(days=1)
+        except ValueError:
+            abort(400, 'end should be in isostring format')
+        query = query.filter(Call.timestamp <= endDate)
+        completed_query = completed_query.filter(Call.timestamp <= endDate)
+
+    dates = defaultdict(dict)
+    for (date, campaign_id, timespan, count) in query.all():
+        date_string = date.strftime(timespan_strf)
+        dates[date_string][int(campaign_id)] = count
+    sorted_dates = OrderedDict(sorted(dates.items()))
+
+    meta = {
+        'calls_completed': completed_query.count()
+    }
+
+    return Response(json.dumps({'meta': meta,'objects': sorted_dates}), mimetype='application/json')
+
+
 # more detailed campaign statistics
 @api.route('/campaign/<int:campaign_id>/stats.json', methods=['GET'])
 @api_key_or_auth_required
@@ -172,7 +248,7 @@ def campaign_date_calls(campaign_id):
                 date_string = date.strftime(timespan_strf)
                 dates[date_string][status] = count
     sorted_dates = OrderedDict(sorted(dates.items()))
-    return Response(json.dumps(sorted_dates), mimetype='application/json')
+    return Response(json.dumps({'objects': sorted_dates}), mimetype='application/json')
 
 
 # calls made by target
@@ -237,11 +313,15 @@ def campaign_target_calls(campaign_id):
             target = u'{} {}'.format(target_title, target_name)
             if call_status == status:
                 targets[target][call_status] = targets.get(target, {}).get(call_status, 0) + count
+        try:
+            for (target_title, target_name, call_status, count) in calls_wo_targets.all():
+                if call_status == status:
+                    targets['Unknown'][call_status] = targets.get('Unknown', {}).get(call_status, 0) + count
+        except ValueError:
+            # can be triggered if there are calls without target id
+            targets['Unknown'][status] = ''
 
-        for (target_title, target_name, call_status, count) in calls_wo_targets.all():
-            if call_status == status:
-                targets['Unknown'][call_status] = targets.get('Unknown', {}).get(call_status, 0) + count
-    return Response(json.dumps(targets), mimetype='application/json')
+    return Response(json.dumps({'objects': targets}), mimetype='application/json')
 
 
 # embed campaign routes, should be public

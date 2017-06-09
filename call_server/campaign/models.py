@@ -11,8 +11,7 @@ from ..political_data.adapters import adapt_by_key
 from ..political_data import get_country_data
 from .constants import (STRING_LEN, TWILIO_SID_LENGTH, LANGUAGE_CHOICES,
                         CAMPAIGN_STATUS, STATUS_PAUSED,
-                        SEGMENT_BY_CHOICES, LOCATION_CHOICES, TARGET_OFFICE_CHOICES)
-
+                        SEGMENT_BY_CHOICES, LOCATION_CHOICES, INCLUDE_SPECIAL_CHOCIES, TARGET_OFFICE_CHOICES)
 
 class Campaign(db.Model):
     __tablename__ = 'campaign_campaign'
@@ -29,6 +28,7 @@ class Campaign(db.Model):
 
     segment_by = db.Column(db.String(STRING_LEN))
     locate_by = db.Column(db.String(STRING_LEN))
+    include_special = db.Column(db.String(STRING_LEN))
     target_set = db.relationship('Target', secondary='campaign_target_sets',
                                  order_by='campaign_target_sets.c.order',
                                  backref=db.backref('campaigns'))
@@ -108,7 +108,10 @@ class Campaign(db.Model):
 
     @property
     def language_code(self):
-        return u"{}-{}".format(self.campaign_language.lower(), self.country_code.upper())
+        if self.campaign_language and self.country_code:
+            return u"{}-{}".format(self.campaign_language.lower(), self.country_code.upper())
+        else:
+            return u"en-US"
 
     def language_display(self):
         return dict(LANGUAGE_CHOICES).get(self.campaign_language, '?')
@@ -120,6 +123,10 @@ class Campaign(db.Model):
             return campaign_data.get_order_display(self.target_ordering)
         else:
             return None
+
+    def include_special_display(self):
+        "Display method for this campaign's special inclusion"
+        return dict(INCLUDE_SPECIAL_CHOCIES).get(self.include_special, '?')
 
     def phone_numbers(self, region_code=None):
         "Phone numbers for this campaign, can be limited to a specified region code (ISO-2)"
@@ -216,7 +223,7 @@ class Target(db.Model):
         return self.number.e164
 
     @classmethod
-    def get_or_cache_key(cls, uid, prefix=None):
+    def get_or_cache_key(cls, uid, prefix=None, cache=cache):
         if prefix:
             key = '%s:%s' % (prefix, uid)
         else:
@@ -226,8 +233,9 @@ class Target(db.Model):
         cached = False
 
         if not t:
-            cached_obj = cache.get(key)
             adapter = adapt_by_key(key)
+            adapted_key, adapter_suffix = adapter.key(key)
+            cached_obj = cache.get(adapted_key)
             if type(cached_obj) is list:
                 data = adapter.target(cached_obj[0])
                 offices = adapter.offices(cached_obj[0])
@@ -235,15 +243,24 @@ class Target(db.Model):
                 data = adapter.target(cached_obj)
                 offices = adapter.offices(cached_obj)
             else:
+                current_app.logger.error('Target.get_or_cache_key got unknown cached_obj type %s' % type(cached_obj))
                 # do it live
                 data = cached_obj
-                offices = cached_obj.get('offices', [])
+                try:
+                    offices = cached_obj.get('offices', [])
+                except AttributeError:
+                    offices = []
 
             # create target object
             t = Target(**data)
+            t.uid = adapted_key
             db.session.add(t)
             # create office objects, link to target
             for office in offices:
+                if adapter_suffix:
+                    if not office['uid'] == adapter_suffix:
+                        continue
+
                 o = TargetOffice(**office)
                 o.target = t
                 db.session.add(o)
@@ -257,6 +274,7 @@ class TargetOffice(db.Model):
     __tablename__ = 'campaign_target_office'
 
     id = db.Column(db.Integer, primary_key=True)
+    uid = db.Column(db.String(STRING_LEN), index=True, nullable=True)  # for US, this is bioguide_id-location_name
     name = db.Column(db.String(STRING_LEN), nullable=True)
     address = db.Column(db.String(STRING_LEN), nullable=True, unique=False)
     location = db.Column(db.String(STRING_LEN), nullable=True, unique=False)

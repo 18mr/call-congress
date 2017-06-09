@@ -2,14 +2,14 @@ from flask.ext.wtf import Form
 from flask.ext.babel import gettext as _
 from wtforms import (HiddenField, SubmitField, TextField,
                      SelectField, SelectMultipleField,
-                     BooleanField, RadioField, IntegerField,
+                     BooleanField, RadioField,
                      FileField, FieldList, FormField)
 from wtforms.ext.sqlalchemy.fields import QuerySelectField, QuerySelectMultipleField
-from wtforms_components import PhoneNumberField, read_only
-from wtforms.widgets import TextArea
+from wtforms_components import PhoneNumberField, IntegerField, read_only
+from wtforms.widgets import TextArea, Input
 from wtforms.validators import Required, Optional, AnyOf, NumberRange, ValidationError
 
-from .constants import (SEGMENT_BY_CHOICES, LOCATION_CHOICES, TARGET_OFFICE_CHOICES, LANGUAGE_CHOICES,
+from .constants import (SEGMENT_BY_CHOICES, LOCATION_CHOICES, INCLUDE_SPECIAL_CHOCIES, TARGET_OFFICE_CHOICES, LANGUAGE_CHOICES,
                         CAMPAIGN_STATUS, EMBED_FORM_CHOICES, EMBED_SCRIPT_DISPLAY)
 
 from .models import Campaign, TwilioPhoneNumber
@@ -52,8 +52,11 @@ class CampaignForm(Form):
                             description=True, default=SEGMENT_BY_CHOICES[0][0])
     locate_by = RadioField(_('Locate By'), [Optional()], choices=choice_items(LOCATION_CHOICES),
                            description=True, default=None)
+    show_special = BooleanField(_('Include Special Targets'), [Optional()], default=False)
+    include_special = SelectField(_('User\'s Representatives'), [Optional()], choices=choice_items(INCLUDE_SPECIAL_CHOCIES),
+                           description=True, default=INCLUDE_SPECIAL_CHOCIES[0][0])
     target_set = FieldList(FormField(TargetForm, _('Choose Targets')), validators=[Optional()])
-    target_ordering = RadioField(_('Order'), [Optional()], description=True)
+    target_ordering = RadioField(_('Target Order'), [Optional()], description=True)
     target_offices = RadioField(_('Target Offices'), [Optional()], choices=choice_items(TARGET_OFFICE_CHOICES),
                             description=True, default=TARGET_OFFICE_CHOICES[0][0])
 
@@ -140,8 +143,10 @@ class CampaignLaunchForm(Form):
     embed_custom_css = TextField(_('Custom CSS URL'))
     embed_script_display = SelectField(_('Script Display'), [Optional()], choices=choice_items(EMBED_SCRIPT_DISPLAY),
         description=True, default=EMBED_SCRIPT_DISPLAY[0][0])
+    embed_phone_display = TextField(_('Phone Display'), description=True)
     embed_redirect = TextField(_('Redirect URL'), description=True)
-    embed_custom_js = TextField(_('Custom JS Code'), description=True)
+    embed_custom_js = TextField(_('Custom JS Success'), description=True)
+    embed_custom_onload = TextField(_('Custom JS Onload'), widget=TextArea(), description=True)
 
     submit = SubmitField(_('Launch'))
 

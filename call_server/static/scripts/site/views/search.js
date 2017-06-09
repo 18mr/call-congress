@@ -191,12 +191,25 @@
         if (person.title === 'Rep')  { person.title = 'Representative'; }
         if (person.elected_office === 'MP')  { person.title = 'MP'; }
 
+<<<<<<< HEAD
         if (person.bioguide_id) {
           person.uid = 'us:bioguide:'+person.bioguide_id;
         } else if (person.leg_id) {
           person.uid = 'us_state:openstates:'+person.leg_id;
         } else if (person.title === 'Governor') {
           person.uid = 'us_state:governor:'+person.state
+=======
+        var uid_prefix = '';
+        if (person.bioguide_id) {
+          uid_prefix = 'us:bioguide:';
+          person.uid = uid_prefix+person.bioguide_id;
+        } else if (person.leg_id) {
+          uid_prefix = 'us_state:openstates:';
+          person.uid = uid_prefix+person.leg_id;
+        } else if (person.title === 'Governor') {
+          uid_prefix = 'us_state:governor:';
+          person.uid = uid_prefix+person.state
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
         } else if (person.related && person.related.boundary_url) {
           var boundary_url = person.related.boundary_url.replace('/boundaries/', '/');
           person.uid = boundary_url;
@@ -210,10 +223,22 @@
 
         // then any others
         _.each(person.offices, function(office) {
+<<<<<<< HEAD
           if (office.phone || office.tel) {
             person.phone = office.phone || office.tel;
             person.office_name = office.name || office.city || office.type;
             var li = renderTemplate("#search-results-item-tmpl", person);
+=======
+          // normalize fields to person
+          if (office.phone || office.tel) {
+            office.title = person.title;
+            office.first_name = person.first_name;
+            office.last_name = person.last_name;
+            office.uid = person.uid+(office.id || '');
+            office.phone = office.phone || office.tel;
+            office.office_name = office.name || office.city || office.type;
+            var li = renderTemplate("#search-results-item-tmpl", office);
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
             dropdownMenu.append(li);
           }
         });
@@ -233,11 +258,23 @@
     },
 
     selectSearchResult: function(event) {
+<<<<<<< HEAD
       // pull json data out of data-object attr
       var obj = $(event.target).data('object');
       
       // add it to the targetListView collection
       CallPower.campaignForm.targetListView.collection.add(obj);
+=======
+      // get reference to collection from global
+      var collection = CallPower.campaignForm.targetListView.collection;
+
+      // pull json data out of data-object attr
+      var obj = $(event.target).data('object');
+      // force to appear at the end of the list
+      obj.order = collection.length;
+      // add it to the collection, triggers render and recalculateOrder
+      collection.add(obj);
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
 
       // if only one result, closeSearch
       if ($('.search-results .dropdown-menu').children('.result').length <= 1) {

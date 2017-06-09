@@ -2514,7 +2514,11 @@
     id: C000984-catonsville
   - address: 8267 Main St.
     building: ''
+<<<<<<< HEAD
     city: Ellicott
+=======
+    city: Ellicott City
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     fax: 410-465-8740
     hours: M-F 8:30AM to 5PM
     phone: 410-465-8259
@@ -2842,7 +2846,11 @@
     id: C001053-norman
   - address: 100 E. 13th St.
     building: ''
+<<<<<<< HEAD
     city: ada
+=======
+    city: Ada
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     fax: 580-436-5451
     hours: ''
     phone: 580-436-5375
@@ -4275,7 +4283,11 @@
     govtrack: 400093
     thomas: '01477'
   offices:
+<<<<<<< HEAD
   - address: 2746 W. Madison St.
+=======
+  - address: 2813-15 W. Fifth Ave.
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     building: ''
     city: Chicago
     fax: 773-533-7530
@@ -4284,8 +4296,13 @@
     state: IL
     suite: ''
     zip: '60612'
+<<<<<<< HEAD
     latitude: 41.88125790000001
     longitude: -87.69572930000001
+=======
+    latitude: 41.8807415
+    longitude: -87.6990211
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     id: D000096-chicago
 - id:
     bioguide: D000191
@@ -8748,6 +8765,33 @@
     latitude: 32.5579513
     longitude: -93.7228425
     id: J000299-bossier_city
+<<<<<<< HEAD
+=======
+  - address: 444 Caspari Dr.
+    building: ''
+    city: Natchitoches
+    fax: ''
+    hours: ''
+    phone: 318-357-5731
+    state: LA
+    suite: South Hall Room 224
+    zip: '71497'
+    latitude: 31.7479383
+    longitude: -93.0970551
+    id: J000299-natchitoches
+  - address: 3329 University Parkway
+    building: Building 552
+    city: Leesville
+    fax: ''
+    hours: ''
+    phone: 337-392-3146
+    state: LA
+    suite: Room 24
+    zip: '71446'
+    latitude: 31.0884912
+    longitude: -93.2312895
+    id: J000299-leesville
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
 - id:
     bioguide: K000009
     govtrack: 400211
@@ -9257,7 +9301,11 @@
     latitude: 46.6766073
     longitude: -67.9956649
     id: K000383-presque_isle
+<<<<<<< HEAD
   - address: 383 Route
+=======
+  - address: 383 Route 1
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     building: ''
     city: Scarborough
     fax: ''
@@ -10005,6 +10053,7 @@
     govtrack: 412191
     thomas: '01834'
   offices:
+<<<<<<< HEAD
   - address: 415 Main St.
     building: ''
     city: Buena Vista
@@ -10017,6 +10066,8 @@
     latitude: 38.8427855
     longitude: -106.1285992
     id: L000564-buena_vista
+=======
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
   - address: 1125 Kelly Johnson Blvd.
     building: ''
     city: Colorado Springs
@@ -10646,6 +10697,21 @@
     latitude: 30.4463425
     longitude: -84.28819759999999
     id: L000586-tallahassee
+<<<<<<< HEAD
+=======
+  - address: 1010 N. Davis St.
+    building: ''
+    city: Jacksonville
+    fax: 904-379-0309
+    hours: ''
+    phone: 904-354-1652
+    state: FL
+    suite: Suite 206
+    zip: '32209'
+    latitude: 30.336823
+    longitude: -81.667581
+    id: L000586-jacksonville
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
 - id:
     bioguide: L000587
     govtrack: 412711
@@ -10688,7 +10754,11 @@
     phone: 718-349-5972
     state: NY
     suite: ''
+<<<<<<< HEAD
     zip: 11211-222
+=======
+    zip: 11211-2228
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     latitude: 40.7155784
     longitude: -73.94987139999999
     id: M000087-brooklyn
@@ -12370,7 +12440,23 @@
 - id:
     bioguide: M001200
     govtrack: 412728
+<<<<<<< HEAD
     offices: []
+=======
+  offices:
+  - address: 110 North Robinson Street
+    building: ''
+    city: Richmond
+    fax: ''
+    hours: ''
+    phone: 804-486-1840
+    state: VA
+    suite: Suite 401
+    zip: '23220'
+    latitude: 37.5534549
+    longitude: -77.4731247
+    id: M001200-richmond
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
 - id:
     bioguide: M001201
     govtrack: 412710
@@ -12632,7 +12718,11 @@
     govtrack: 400295
     thomas: '00868'
   offices:
+<<<<<<< HEAD
   - address: 90 K St.
+=======
+  - address: 90 K St. NE
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     building: ''
     city: Washington
     fax: 202-408-9048
@@ -12644,17 +12734,28 @@
     latitude: 38.9031719
     longitude: -77.00662319999999
     id: N000147-washington
+<<<<<<< HEAD
   - address: 2041 Martin Luther King Jr Ave.
+=======
+  - address: 2235 Shannon Place SE
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     building: ''
     city: Washington
     fax: 202-678-8844
     hours: M-F 9-5:30pm
     phone: 202-678-8900
     state: DC
+<<<<<<< HEAD
     suite: Suite 238
     zip: '20020'
     latitude: 38.8659837
     longitude: -76.9897997
+=======
+    suite: Suite 2032-A
+    zip: '20020'
+    latitude: 38.86535
+    longitude: -76.99073
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     id: N000147-washington-1
 - id:
     bioguide: N000179
@@ -14794,6 +14895,7 @@
     latitude: 30.438114
     longitude: -84.281289
     id: R000595-tallahassee
+<<<<<<< HEAD
   - address: 5201 W. Kennedy Blvd.
     building: ''
     city: Tampa
@@ -14806,6 +14908,8 @@
     latitude: 27.945205
     longitude: -82.5314559
     id: R000595-tampa
+=======
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
 - id:
     bioguide: R000597
     govtrack: 412572
@@ -15382,17 +15486,28 @@
     govtrack: 400367
     thomas: '01525'
   offices:
+<<<<<<< HEAD
   - address: 12750 Merit Drive
+=======
+  - address: 12377 Merit Drive
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     building: Park Central VII
     city: Dallas
     fax: 972-392-0615
     hours: ''
     phone: 972-392-0505
     state: TX
+<<<<<<< HEAD
     suite: Suite 1434
     zip: 75251-1229
     latitude: 32.9222738
     longitude: -96.7703002
+=======
+    suite: Suite 750
+    zip: 75251-2345
+    latitude: 32.915938
+    longitude: -96.772971
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     id: S000250-dallas
 - id:
     bioguide: S000320
@@ -15552,6 +15667,7 @@
     govtrack: 400379
     thomas: '01528'
   offices:
+<<<<<<< HEAD
   - address: 15590 Lake Hills Blvd.
     building: Lake Hills Library
     city: Bellevue
@@ -15600,6 +15716,8 @@
     latitude: 47.5669511
     longitude: -122.2211918
     id: S000510-mercer_island
+=======
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
   - address: 15 S. Grady Way.
     building: 101 Evergreen Building
     city: Renton
@@ -15612,6 +15730,7 @@
     latitude: 47.469273
     longitude: -122.2153306
     id: S000510-renton
+<<<<<<< HEAD
   - address: 7058 32nd Ave.
     building: ''
     city: Seattle
@@ -15648,6 +15767,8 @@
     latitude: 47.59627
     longitude: -122.3121966
     id: S000510-seattle-2
+=======
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
 - id:
     bioguide: S000522
     govtrack: 400380
@@ -17147,17 +17268,29 @@
     latitude: 40.261919
     longitude: -76.882739
     id: T000461-harrisburg
+<<<<<<< HEAD
   - address: 1628 John F. Kennedy Blvd
     building: 8 Penn Center
+=======
+  - address: 200 Chestnut Street
+    building: US Custom House
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     city: Philadelphia
     fax: 215-241-1095
     hours: ''
     phone: 215-241-1090
     state: PA
+<<<<<<< HEAD
     suite: Suite 1702
     zip: '19103'
     latitude: 39.953754
     longitude: -75.167981
+=======
+    suite: Suite 600
+    zip: '19106'
+    latitude: 39.94829
+    longitude: -75.1441
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
     id: T000461-philadelphia
   - address: 100 W. Station Square Dr.
     building: ''
@@ -19268,3 +19401,118 @@
     latitude: 27.772067
     longitude: -82.64355
     id: C001111-st__petersburg
+<<<<<<< HEAD
+=======
+- id:
+    bioguide: H001077
+    govtrack: 412705
+  offices:
+  - address: 600 Jefferson Street
+    building: Chase Building
+    city: Lafayette
+    fax: ''
+    hours: ''
+    phone: 337-703-6105
+    state: LA
+    suite: Suite 808
+    zip: '70501'
+    latitude: 30.22335
+    longitude: -92.01907
+    id: H001077-lafayette
+  - address: 1 Lakeshore Drive
+    building: Capital One Building
+    city: Lake Charles
+    fax: ''
+    hours: ''
+    phone: 337-656-2833
+    state: LA
+    suite: Suite 1670
+    zip: '70629'
+    latitude: 30.2305579
+    longitude: -93.2196295
+    id: H001077-lake_charles
+- id:
+    bioguide: T000477
+    govtrack: 412727
+  offices:
+  - address: 1 Columbus Center
+    building: ''
+    city: Virginia Beach
+    fax: ''
+    hours: ''
+    phone: 757-364-7650
+    state: VA
+    suite: Suite 900
+    zip: '23462'
+    latitude: 36.8425
+    longitude: -76.13196
+    id: T000477-virginia_beach
+- id:
+    bioguide: V000128
+    govtrack: 400415
+  offices:
+  - address: 111 Rockville Pike
+    building: ''
+    city: Rockville
+    fax: ''
+    hours: ''
+    phone: 301-545-1500
+    state: MD
+    suite: Suite 960
+    zip: '20850'
+    latitude: 39.08895
+    longitude: -77.15119
+    id: V000128-rockville
+  - address: 32 West Washington Street
+    building: ''
+    city: Hagerstown
+    fax: ''
+    hours: ''
+    phone: 301-797-2826
+    state: MD
+    suite: Suite 203
+    zip: '21740'
+    latitude: 39.64151
+    longitude: -77.7191
+    id: V000128-hagerstown
+- id:
+    bioguide: K000393
+    govtrack: 412679
+  offices:
+  - address: 101 La Rue France
+    building: ''
+    city: Lafayette
+    fax: ''
+    hours: ''
+    phone: 337-269-5980
+    state: LA
+    suite: Suite 503
+    zip: '70508'
+    latitude: 30.1948666
+    longitude: -92.014654
+    id: K000393-lafayette
+  - address: 1651 Louisville Avenue
+    building: ''
+    city: Monroe
+    fax: ''
+    hours: ''
+    phone: 318-361-1489
+    state: LA
+    suite: Suite 108
+    zip: '71201'
+    latitude: 32.5175209
+    longitude: -92.1087384
+    id: K000393-monroe
+  - address: 6501 Coliseum Blvd
+    building: ''
+    city: Alexandria
+    fax: ''
+    hours: ''
+    phone: 318-445-2892
+    state: LA
+    suite: Suite 700A
+    zip: '71303'
+    latitude: 31.2934776
+    longitude: -92.51565289999999
+    id: K000393-alexandria
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130

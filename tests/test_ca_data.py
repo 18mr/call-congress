@@ -19,7 +19,13 @@ class TestCAData(BaseTestCase):
         cls.ca_data = CADataProvider(cls.mock_cache)
         # cls.ca_data.load_data()
 
+<<<<<<< HEAD
     def setUp(self):
+=======
+    def setUp(self, **kwargs):
+        super(TestCAData, self).setUp(**kwargs)
+
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
         self.PARLIAMENT_CAMPAIGN = Campaign(
             country_code='ca',
             campaign_type='parliament',
@@ -47,7 +53,11 @@ class TestCAData(BaseTestCase):
         self.assertEqual(riding['city'], 'Mississauga')
 
     def test_locate_targets(self):
+<<<<<<< HEAD
         keys = locate_targets(self.mock_location, self.PARLIAMENT_CAMPAIGN, self.mock_cache)
+=======
+        keys = locate_targets(self.mock_location, self.PARLIAMENT_CAMPAIGN, cache=self.mock_cache)
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
         # returns a list of target boundary keys
         self.assertEqual(len(keys), 1)
 
@@ -56,7 +66,11 @@ class TestCAData(BaseTestCase):
         self.assertEqual(mp['representative_set_name'], 'House of Commons')
 
     def test_locate_targets_province_quebec(self):
+<<<<<<< HEAD
         keys = locate_targets(self.mock_location, self.PROVINCE_CAMPAIGN, self.mock_cache)
+=======
+        keys = locate_targets(self.mock_location, self.PROVINCE_CAMPAIGN, cache=self.mock_cache)
+>>>>>>> 987c3256ab48e2f6398b00e12887b0d010af1130
         self.assertEqual(len(keys), 1)
         mha = self.ca_data.cache_get(keys[0])
         self.assertEqual(mha['elected_office'], 'MNA')
