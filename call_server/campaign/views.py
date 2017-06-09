@@ -3,13 +3,13 @@ import datetime
 from flask import (Blueprint, render_template, current_app, request,
                    flash, url_for, redirect, session, abort, jsonify)
 from flask.json import JSONEncoder
-from flask.ext.login import login_required
+from flask_login import login_required
 from flask_store.providers.temp import TemporaryStore
 
 import sqlalchemy
 from sqlalchemy.sql import func, desc
 
-from twilio.util import TwilioCapability
+from twilio.jwt.client import ClientCapabilityToken
 
 from ..extensions import db
 from ..political_data import COUNTRY_CHOICES
@@ -232,7 +232,7 @@ def audio(campaign_id):
     form = CampaignAudioForm()
 
     twilio_client = current_app.config.get('TWILIO_CLIENT')
-    twilio_capability = TwilioCapability(*twilio_client.auth)
+    twilio_capability = ClientCapabilityToken(*twilio_client.auth)
     twilio_capability.allow_client_outgoing(current_app.config.get('TWILIO_PLAYBACK_APP'))
 
     for field in form:
@@ -457,9 +457,9 @@ def status(campaign_id):
 @campaign.route('/<int:campaign_id>/calls', methods=['GET'])
 def calls(campaign_id):
     campaign = Campaign.query.filter_by(id=campaign_id).first_or_404()
-    # call lookup handled via api ajax
+    # call lookup handled via api ajax to /api/calls
 
-    start = datetime.date.today()
-    end = start + datetime.timedelta(days=1)
+    start = request.args.get("start") or datetime.date.today()
+    end = request.args.get("end") or (start + datetime.timedelta(days=1))
 
     return render_template('campaign/calls.html', campaign=campaign, start=start, end=end)

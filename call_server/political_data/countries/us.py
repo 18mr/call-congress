@@ -1,6 +1,6 @@
 import werkzeug.contrib.cache
-from flask.ext.babel import gettext as _
-from sunlight import openstates, response_cache
+from flask_babel import gettext as _
+import pyopenstates
 
 from . import DataProvider, CampaignType
 
@@ -12,6 +12,7 @@ import csv
 import yaml
 import collections
 import random
+from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
 
@@ -213,8 +214,6 @@ class USDataProvider(DataProvider):
         super(USDataProvider, self).__init__(**kwargs)
         self._cache = cache
         self._geocoder = Geocoder(country='US')
-        if api_cache is not None:
-            response_cache.enable(api_cache)
 
     def get_location(self, locate_by, raw):
         if locate_by == LOCATION_POSTAL:
@@ -240,23 +239,31 @@ class USDataProvider(DataProvider):
         legislators = collections.defaultdict(list)
         offices = collections.defaultdict(list)
 
-        with open('call_server/political_data/data/us_congress_current.yaml') as f1, open('call_server/political_data/data/us_congress_offices.yaml') as f2:
+        with open('call_server/political_data/data/us_congress_current.yaml') as f1, \
+            open('call_server/political_data/data/us_congress_historical.yaml') as f2, \
+            open('call_server/political_data/data/us_congress_offices.yaml') as f3:
 
-            leg_info = yaml.load(f1, Loader=yamlLoader)
-            office_info = yaml.load(f2, Loader=yamlLoader)
+            current_leg = yaml.load(f1, Loader=yamlLoader)
+            historical_leg = yaml.load(f2, Loader=yamlLoader)
+            office_info = yaml.load(f3, Loader=yamlLoader)
 
             for info in office_info:
                 id = info['id']['bioguide']
                 offices[id] = info.get('offices', [])
 
-            for info in leg_info:
+            for info in current_leg+historical_leg:
                 term = info['terms'][-1]
                 if term['start'] < "2011-01-01":
                     continue # don't get too historical
 
+                term['current'] = (term['end'] >= datetime.now().strftime('%Y-%m-%d'))
+
                 if term.get('phone') is None:
-                    log.error(u"term does not have field phone {type} {name}{last}".format(term, info))
-                    continue
+                    term['name'] = info['name']['last']
+                    if term['current']:
+                        log.error(u"term {start} - {end} does not have field phone for {type} {name}".format(**term))
+                    else:
+                        continue
 
                 district = str(term['district']) if term.has_key('district') else None
 
@@ -269,7 +276,8 @@ class USDataProvider(DataProvider):
                     'chamber':     "senate" if term['type'] == "sen" else "house",
                     'state':       term['state'],
                     'district':    district,
-                    'offices':     offices.get(info['id']['bioguide'], [])
+                    'offices':     offices.get(info['id']['bioguide'], []),
+                    'current':     term['current'],
                 }
 
                 direct_key = self.KEY_BIOGUIDE.format(**record)
@@ -278,10 +286,14 @@ class USDataProvider(DataProvider):
                 else:
                     chamber_key = self.KEY_HOUSE.format(**record)
 
+                # we want bioguide access to all recent legislators
                 legislators[direct_key].append(record)
-                legislators[chamber_key].append(record)
+                # but only house or senate access to current ones
+                if term['current']:
+                    legislators[chamber_key].append(record)
 
         return legislators
+
 
     def _load_districts(self):
         """
@@ -348,9 +360,14 @@ class USDataProvider(DataProvider):
                     if key.startswith(sorted_key):
                         redis.zadd(sorted_key, key, 0)
 
-        log.info("loaded %s zipcodes" % len(districts))
-        log.info("loaded %s legislators" % len(legislators))
-        log.info("loaded %s governors" % len(governors))
+        success = [
+            "%s zipcodes" % len(districts),
+            "%s legislators" % len(legislators),
+            "%s governors" % len(governors),
+            "at %s" % datetime.now(),
+        ]
+        log.info('loaded %s' % ', '.join(success))
+        self.cache_set('political_data:us', success)
 
         return len(districts) + len(legislators) + len(governors)
 
@@ -381,7 +398,7 @@ class USDataProvider(DataProvider):
         if not location.latitude and location.longitude:
             raise LocationError('USDataProvider.get_state_legislators requires location with lat/lon')
             
-        legislators = openstates.legislator_geo_search(location.latitude, location.longitude)
+        legislators = pyopenstates.locate_legislators(location.latitude, location.longitude)
 
         # save results individually in local cache
         for leg in legislators:
@@ -391,6 +408,11 @@ class USDataProvider(DataProvider):
 
         return legislators
 
+    def get_bioguide(self, bioguide):
+        # try first to get from cache
+        key = self.KEY_BIOGUIDE.format(bioguide_id=bioguide)
+        return self.cache_get(key, list({}))
+
     def get_state_legid(self, legid):
         # try first to get from cache
         key = self.KEY_OPENSTATES.format(id=legid)
@@ -398,7 +420,7 @@ class USDataProvider(DataProvider):
         
         if not leg:
             # or lookup from openstates and save
-            leg = openstates.legislator_detail(legid)
+            leg = pyopenstates.get_legislator(legid)
             leg['cache_key'] = key
             self.cache_set(key, leg)
         return leg

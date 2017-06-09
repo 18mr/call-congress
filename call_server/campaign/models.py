@@ -210,6 +210,7 @@ class Target(db.Model):
     uid = db.Column(db.String(STRING_LEN), index=True, nullable=True)  # for US, this is bioguide_id
     title = db.Column(db.String(STRING_LEN), nullable=True)
     name = db.Column(db.String(STRING_LEN), nullable=False, unique=False)
+    district = db.Column(db.String(STRING_LEN), nullable=True)
     number = db.Column(phone_number.PhoneNumberType())
     offices = db.relationship('TargetOffice', backref="target")
 
@@ -221,6 +222,7 @@ class Target(db.Model):
 
     def phone_number(self):
         return self.number.e164
+
 
     @classmethod
     def get_or_cache_key(cls, uid, prefix=None, cache=cache):
@@ -321,10 +323,10 @@ class TwilioPhoneNumber(db.Model):
         apps = twilio_client.applications.list(friendly_name=twilio_app_name)
         if apps:
             app_sid = apps[0].sid  # there can be only one!
-            app = twilio_client.applications.update(app_sid,
-                                              friendly_name=twilio_app_name,
-                                              voice_url=campaign_call_url,
-                                              voice_method="POST")
+            app = twilio_client.applications(app_sid).fetch()
+            app.update(friendly_name=twilio_app_name,
+                       voice_url=campaign_call_url,
+                       voice_method="POST")
         else:
             app = twilio_client.applications.create(friendly_name=twilio_app_name,
                                               voice_url=campaign_call_url,
@@ -332,8 +334,9 @@ class TwilioPhoneNumber(db.Model):
 
         success = (app.voice_url == campaign_call_url)
 
-        # set twilio number to use app
-        twilio_client.phone_numbers.update(self.twilio_sid, voice_application_sid=app.sid)
+        # set twilio call_in_number to use app
+        call_in_number = twilio_client.incoming_phone_numbers(self.twilio_sid).fetch()
+        call_in_number.update(voice_application_sid=app.sid)
         self.twilio_app = app.sid
         self.call_in_campaign_id = campaign.id
 

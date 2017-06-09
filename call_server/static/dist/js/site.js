@@ -280,31 +280,60 @@ $(document).ready(function () {
   });
 
 
-  CallPower.Collections.CallList = Backbone.Collection.extend({
+  CallPower.Collections.CallList = Backbone.PageableCollection.extend({
     model: CallPower.Models.Call,
     url: '/api/call',
+    // turn off PageableCollection queryParams by setting to null
+    // per https://github.com/backbone-paginator/backbone.paginator/issues/240
+    queryParams: {
+      pageSize: null,
+      currentPage: "page",
+      totalRecords: null,
+      totalPages: null,
+    },
+    state: {
+      firstPage: 1,
+      pageSize: 10,
+      sortKey: "timestamp",
+      direction: -1,
+    },
 
     initialize: function(campaign_id) {
       this.campaign_id = campaign_id;
     },
 
-    parse: function(response) {
+    parseRecords: function(response) {
       return response.objects;
     },
 
-    fetch: function(options) {
-      // transform filters to flask-restless style
+    parseState: function (resp, queryParams, state, options) {
+      return {
+        currentPage: resp.page,
+        totalRecords: resp.num_results
+      };
+    },
+
+    fetch: function() {
+      // transform filters and pagination to flask-restless style
       // always include campaign_id filter
       var filters = [{name: 'campaign_id', op: 'eq', val: this.campaign_id}];
-      if (options.filters) {
-        Array.prototype.push.apply(filters, options.filters);
+      if (this.filters) {
+        Array.prototype.push.apply(filters, this.filters);
       }
+      // calculate offset from currentPage * pageSize, accounting for 1-base
+      var currentOffset = Math.max(this.state.currentPage*-1, 0) * this.state.pageSize;
       var flaskQuery = {
-        q: JSON.stringify({ filters: filters })
+        filters: filters,
+        offset: currentOffset,
+        order_by: [{
+          field: this.state.sortKey,
+          direction: this.state.direction == -1 ? "asc" : "desc"
+        }]
       };
-
-      var fetchOptions = _.extend({ data: flaskQuery }, options);
-      return Backbone.Collection.prototype.fetch.call(this, fetchOptions);
+      var fetchOptions = _.extend({ data: {
+        q: JSON.stringify(flaskQuery)
+      }});
+      return Backbone.PageableCollection.prototype.fetch.call(this, fetchOptions);
     }
   });
 
@@ -325,10 +354,14 @@ $(document).ready(function () {
 
   CallPower.Views.CallLog = Backbone.View.extend({
     el: $('#call_log'),
+    el_paginator: $('#calls-list-paginator'),
 
     events: {
       'change .filters input': 'updateFilters',
       'change .filters select': 'updateFilters',
+      'click .filters button.search': 'searchCallIds',
+      'blur input[name="call-search"]': 'searchCallIds',
+      'click a.info-modal': 'showInfoModal',
     },
 
 
@@ -347,10 +380,15 @@ $(document).ready(function () {
       this.updateFilters();
     },
 
+    pagingatorPage: function(event, num){
+      this.collection.getPage(num);
+    },
+
     updateFilters: function(event) {
       var status = $('select[name="status"]').val();
       var start = new Date($('input[name="start"]').datepicker('getDate'));
       var end = new Date($('input[name="end"]').datepicker('getDate'));
+      var call_sids = JSON.parse($('input[name="call_sids"]').val());
 
       if (start > end) {
         $('.input-daterange input[name="start"]').addClass('error');
@@ -369,8 +407,35 @@ $(document).ready(function () {
       if (end) {
         filters.push({'name': 'timestamp', 'op': 'lt', 'val': end.toISOString()});
       }
+      if(call_sids) {
+        filters.push({'name': 'call_id', 'op': 'in', 'val': call_sids});
+      }
+      this.collection.filters = filters;
 
-      this.collection.fetch({filters: filters});
+      var self = this;
+      this.collection.fetch().then(function() {
+        // reset paginator with new results
+        self.el_paginator.bootpag({
+          total: self.collection.state.totalPages,
+          page: self.collection.state.currentPage,
+          maxVisible: 5,
+        }).on('page', _.bind(self.pagingatorPage, self));
+      });
+    },
+
+    searchCallIds: function() {
+      var self = this;
+
+      var search_phone = $('input[name="call-search"]').val();
+      if (!search_phone)
+        return false;
+
+      $.getJSON('/api/twilio/calls/to/'+search_phone+'/',
+          function(data) {
+            $('input[name="call_sids"]').val(JSON.stringify(data.objects));
+        }).then(function() {
+          self.updateFilters();
+        });
     },
 
     renderCollection: function() {
@@ -403,7 +468,45 @@ $(document).ready(function () {
       return new CallPower.Views.CallItemView({ model: model });
     },
 
+    showInfoModal: function (event) {
+      var sid = $(event.target).data('sid');
+      $.getJSON('/api/twilio/calls/info/'+sid+'/',
+          function(data) {
+            data.sid = sid;
+            return (new CallPower.Views.CallInfoView(data)).render();
+        });
+    },
+
   });
+  
+  CallPower.Views.CallInfoView = Backbone.View.extend({
+    tagName: 'div',
+    className: 'microphone modal fade',
+
+    initialize: function(data) {
+      this.data = data;
+      this.template = _.template($('#call-info-tmpl').html(), { 'variable': 'data' });
+    },
+
+    render: function() {
+      var html = this.template(this.data);
+      this.$el.html(html);
+
+      this.$el.on('hidden.bs.modal', this.destroy);
+      this.$el.modal('show');
+
+      return this;
+    },
+
+    destroy: function() {
+      this.undelegateEvents();
+      this.$el.removeData().unbind();
+
+      this.remove();
+      Backbone.View.prototype.remove.call(this);
+    },
+  });
+
 
 })();
 /*global CallPower, Backbone */
@@ -843,7 +946,7 @@ $(document).ready(function () {
 
       var location = $('#test_call_location').val();
       var country = $('#test_call_country').val() || $('#test_call_country_other').val();
-      var record = $('#test_call_record').val();
+      var record = $('#test_call_record:checked').val();
 
       $.ajax({
         url: '/call/create',
@@ -1519,9 +1622,9 @@ $(document).ready(function () {
             searchData['key'] = 'us_state:governor:'+query;
           } else {
             // hit OpenStates
-            searchURL = CallPower.Config.SUNLIGHT_STATES_URL;
+            searchURL = CallPower.Config.OPENSTATES_URL;
             searchData = {
-              apikey: CallPower.Config.SUNLIGHT_API_KEY,
+              apikey: CallPower.Config.OPENSTATES_API_KEY,
               state: campaign_state,
             }
             if (chamber === 'upper' || chamber === 'lower') {
@@ -1570,16 +1673,14 @@ $(document).ready(function () {
       });
 
       // start spinner
-      $('.btn.search .spin').css('display', 'inline-block');
-      $('.btn.search .text').hide();
+      $('.btn.search .glyphicon').removeClass('glyphicon-search').addClass('glyphicon-repeat spin');
       $('.btn.search').attr('disabled','disabled');
       return true;
     },
 
     renderSearchResults: function(response) {
       // stop spinner
-      $('#target-search .glyphicon.spin').hide();
-      $('.btn.search .text').show();
+      $('.btn.search .glyphicon').removeClass('glyphicon-repeat spin').addClass('glyphicon-search');
       $('.btn.search').removeAttr('disabled');
 
       // clear existing results, errors
@@ -1689,6 +1790,7 @@ $(document).ready(function () {
     events: {
       'change select[name="campaigns"]': 'changeCampaign',
       'change select[name="timespan"]': 'renderChart',
+      'click .btn.download': 'downloadTable',
     },
 
     initialize: function() {
@@ -1716,6 +1818,18 @@ $(document).ready(function () {
       };
       this.summaryDataTemplate = _.template($('#summary-data-tmpl').html(), { 'variable': 'data' });
       this.targetDataTemplate = _.template($('#target-data-tmpl').html(), { 'variable': 'targets'});
+
+      $.tablesorter.addParser({
+        id: 'lastname',
+        is: function(s) {
+          return false;
+        },
+        format: function(s) {
+          var parts = s.split(" ");
+          return parts[1];
+        },
+        type: 'text'
+      });
 
       this.renderChart();
     },
@@ -1779,7 +1893,7 @@ $(document).ready(function () {
         chartDataUrl += ('&end='+end);
       }
 
-      $('#chart_display').html('loading');
+      $('#chart_display').html('<span class="glyphicon glyphicon-refresh spin"></span> Loading...');
       $.getJSON(chartDataUrl, function(data) {
         if (self.campaignId) {
           // calls for this campaign by date, map to series by status
@@ -1838,19 +1952,46 @@ $(document).ready(function () {
           tableDataUrl += ('&end='+end);
         }
 
-        $('table#table_data').html('loading');
-        $.getJSON(tableDataUrl, function(data) {
+        $('table#table_data').html('<span class="glyphicon glyphicon-refresh spin"></span> Loading...');
+        $('#table_display').show();
+        $.getJSON(tableDataUrl).success(function(data) {
           var content = self.targetDataTemplate(data.objects);
-          $('table#table_data').html(content);
-          $('#table_display').show();
+          return $('table#table_data').html(content).promise();
+        }).then(function() {
+          return $('table#table_data').tablesorter({
+            theme: "bootstrap",
+            headerTemplate: '{content} {icon}',
+            headers: {
+              1: {
+                sorter:'lastname'
+              }
+            },
+            sortList: [[3,1]],
+            sortInitialOrder: "asc",
+            widgets: [ "uitheme", "columns", "zebra", "output"],
+            widgetOptions: {
+              zebra : ["even", "odd"],
+              output_delivery: 'download',
+              output_saveFileName: 'callpower-export.csv'
+            }
+          }).promise();
+        }).then(function() {
+          $('.btn.download').show();
+          // don't know why this is necessary, but it appears to be
+          setTimeout(function() {
+            $('table#table_data').trigger("updateAll");
+          }, 10);
         });
       } else {
-        $('#table_display').hide()
+        $('#table_display').hide();
       }
-    }
+    },
 
+    downloadTable: function(event) {
+      console.log('download!');
+      $('table#table_data').trigger('outputTable');
+    },
   });
-
 })();
 /*global CallPower, Backbone */
 
@@ -1911,16 +2052,16 @@ $(document).ready(function () {
 
     events: {
       'keydown [contenteditable]': 'onEdit',
+      'paste [contenteditable]': 'onEdit',
       'blur [contenteditable]': 'onSave',
       'click .remove': 'onRemove',
     },
 
     onEdit: function(event) {
       var target = $(event.target);
-      var esc = event.which == 27,
-          nl = event.which == 13,
-          tab = event.which == 9;
-
+      var esc = (event.which === 27),
+          nl = (event.which === 13),
+          tab = (event.which === 9);
 
       if (esc) {
         document.execCommand('undo');
@@ -1934,6 +2075,11 @@ $(document).ready(function () {
       } else if (target.text() === target.attr('placeholder')) {
         target.text(''); // overwrite placeholder text
         target.removeClass('placeholder');
+      } else if (event.type==='paste') {
+        setTimeout(function() {
+          // on paste, convert html to plain text
+          target.html(target.text());
+        },10);
       }
     },
 

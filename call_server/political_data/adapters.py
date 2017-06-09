@@ -10,6 +10,8 @@ def adapt_by_key(key):
         return GovernorAdapter()
     elif key.startswith("ca:opennorth"):
         return OpenNorthAdapter()
+    elif key.startswith("custom"):
+        return CustomDataAdapter()
     else:
         return DataAdapter()
     # TODO add for other countries
@@ -35,6 +37,21 @@ class DataAdapter(object):
         return [data]
 
 
+class CustomDataAdapter(DataAdapter):
+    def target(self, data):
+        adapted = {
+            'title': data.get('title', ''),
+            'uid': data.get('uid', ''),
+            'number': data.get('number', '')
+        }
+        if 'first_name' in data and 'last_name' in data:
+            adapted['name'] = u'{first_name} {last_name}'.format(**data)
+        elif 'name' in data:
+            adapted['name'] = data['name']
+        else:
+            data['name'] = 'Unknown'
+        return adapted
+
 class UnitedStatesData(DataAdapter):
     def key(self, key):
         # split district office id from rest of bioguide
@@ -44,12 +61,22 @@ class UnitedStatesData(DataAdapter):
             return (key, '')
 
     def target(self, data):
-        return {
-            'name': u'{first_name} {last_name}'.format(**data),
+        adapted = {
             'number': data.get('phone', ''), # DC office number
             'title': data.get('title', ''),
             'uid': data.get('bioguide_id', '')
         }
+        if 'first_name' in data and 'last_name' in data:
+            adapted['name'] = u'{first_name} {last_name}'.format(**data)
+        elif 'name' in data:
+            adapted['name'] = data['name']
+        else:
+            data['name'] = 'Unknown'
+        if 'district' in data and data['district']:
+            adapted['district'] = '{state}-{district}'.format(**data)
+        else:
+            adapted['district'] = data.get('state', '')
+        return adapted
 
     def offices(self, data):
         # district office numbers
@@ -83,10 +110,12 @@ class OpenStatesData(DataAdapter):
             'title': 'Senator' if data['chamber'] == "upper" else "Representative",
             'uid': data.get('leg_id', '')
         }
-        if data.get('first_name') and data.get('last_name'):
+        if 'first_name' in data and 'last_name' in data:
             adapted['name'] = u'{first_name} {last_name}'.format(**data)
         elif data.get('full_name'):
             adapted['name'] = data['full_name']
+        else:
+            adapted['name'] = 'Unknown'
 
         # default to capitol office
         for office in data['offices']:
@@ -96,6 +125,9 @@ class OpenStatesData(DataAdapter):
         if not 'number' in adapted:
             adapted['number'] = data.get('offices',[{}])[0].get('phone', '')
             # fallback to none
+
+        adapted['district'] = data.get('district', '')
+
         return adapted
 
     def offices(self, data):
@@ -116,12 +148,20 @@ class OpenStatesData(DataAdapter):
 
 class GovernorAdapter(DataAdapter):
     def target(self, data):
-        return {
+        adapted = {
             'name': u'{first_name} {last_name}'.format(**data),
             'title': data.get('title', ''),
             'number': data.get('phone', ''),
             'uid': data.get('state', ''),
+            'district': data.get('state', '')
         }
+        if 'first_name' in data and 'last_name' in data:
+            adapted['name'] = u'{first_name} {last_name}'.format(**data)
+        elif data.get('full_name'):
+            adapted['name'] = data['full_name']
+        else:
+            adapted['name'] = 'Unknown'
+        return adapted
 
 
 class OpenNorthAdapter(DataAdapter):
@@ -130,13 +170,20 @@ class OpenNorthAdapter(DataAdapter):
         return (key, '')
 
     def target(self, data):
-        return {
-            'name': u'{first_name} {last_name}'.format(**data),
+        adapted = {
             'title': data.get('elected_office', ''),
             'number': filter(lambda d: d['type'] == 'legislature', data['offices'])[0].get('tel', ''),
             # legislature office number
-            'uid': data.get('cache_key', '')
+            'uid': data.get('cache_key', ''),
+            'district': data.get('district_name', '')
         }
+        if 'first_name' in data and 'last_name' in data:
+            adapted['name'] = u'{first_name} {last_name}'.format(**data)
+        elif data.get('full_name'):
+            adapted['name'] = data['full_name']
+        else:
+            adapted['name'] = 'Unknown'
+        return adapted
 
     def offices(self, data):
         office_list = []

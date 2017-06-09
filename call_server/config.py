@@ -1,6 +1,6 @@
 import os
 import twilio.rest
-import sunlight
+import pyopenstates
 
 
 class DefaultConfig(object):
@@ -8,7 +8,7 @@ class DefaultConfig(object):
     DEBUG = False
     TESTING = False
     ENVIRONMENT = "Default"
-    VERSION = "1.3-beta1"
+    VERSION = "1.3-beta2"
 
     APP_NAME = "call_server"
     APPLICATION_ROOT = None  # the path where the application is configured
@@ -16,6 +16,7 @@ class DefaultConfig(object):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI',
         'sqlite:////%s/dev.db' % os.path.abspath(os.curdir))
     SQLALCHEMY_ECHO = False
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     BABEL_DEFAULT_LOCALE = 'en'
     BABEL_DEFAULT_TIMEZONE = 'UTC'
@@ -34,7 +35,7 @@ class DefaultConfig(object):
     STORE_PROVIDER = 'flask_store.providers.local.LocalProvider'
     STORE_DOMAIN = 'http://localhost:5000' # requires url scheme for Flask-store.absolute_url to work
 
-    TWILIO_CLIENT = twilio.rest.TwilioRestClient(
+    TWILIO_CLIENT = twilio.rest.Client(
         os.environ.get('TWILIO_ACCOUNT_SID'),
         os.environ.get('TWILIO_AUTH_TOKEN'))
     TWILIO_PLAYBACK_APP = os.environ.get('TWILIO_PLAYBACK_APP')
@@ -46,10 +47,10 @@ class DefaultConfig(object):
     SECRET_KEY = os.environ.get('SECRET_KEY')
 
     GEOCODE_API_KEY = os.environ.get('GEOCODE_API_KEY')
-    SUNLIGHT_API_KEY = os.environ.get('SUNLIGHT_API_KEY')
-    if not SUNLIGHT_API_KEY:
-        SUNLIGHT_API_KEY = os.environ.get('SUNLIGHT_KEY')
-    sunlight.config.API_KEY = SUNLIGHT_API_KEY
+    OPENSTATES_API_KEY = os.environ.get('OPENSTATES_API_KEY')
+    if not OPENSTATES_API_KEY:
+        OPENSTATES_API_KEY = os.environ.get('OPENSTATES_API_KEY')
+    pyopenstates.set_api_key(OPENSTATES_API_KEY)
 
     LOG_PHONE_NUMBERS = True
 
@@ -125,7 +126,7 @@ class HerokuConfig(ProductionConfig):
 
 class DevelopmentConfig(DefaultConfig):
     DEBUG = True
-    DEBUG_INFO = True
+    DEBUG_MORE = True
     TESTING = False
 
     CACHE_TYPE = 'redis'

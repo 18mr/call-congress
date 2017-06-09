@@ -8,6 +8,7 @@
     events: {
       'change select[name="campaigns"]': 'changeCampaign',
       'change select[name="timespan"]': 'renderChart',
+      'click .btn.download': 'downloadTable',
     },
 
     initialize: function() {
@@ -36,6 +37,20 @@
       };
       this.campaignDataTemplate = _.template($('#campaign-data-tmpl').html(), { 'variable': 'data' });
       this.targetDataTemplate = _.template($('#target-data-tmpl').html(), { 'variable': 'targets'});
+
+      $.tablesorter.addParser({
+        id: 'lastname',
+        is: function(s) {
+          return false;
+        },
+        format: function(s) {
+          var parts = s.split(" ");
+          return parts[1];
+        },
+        type: 'text'
+      });
+
+      this.renderChart();
     },
 
     changeCampaign: function(event) {
@@ -92,7 +107,7 @@
         chartDataUrl += ('&end='+end);
       }
 
-      $('#calls_for_campaign').html('loading');
+      $('#chart_display').html('<span class="glyphicon glyphicon-refresh spin"></span> Loading...');
       $.getJSON(chartDataUrl, function(data) {
         // api data is by date, map to series by status
         var DISPLAY_STATUS = ['completed', 'busy', 'failed', 'no-answer', 'canceled', 'unknown'];
@@ -105,22 +120,54 @@
         self.chart = new Chartkick.ColumnChart('calls_for_campaign', series, self.chartOpts);
       });
 
-      var tableDataUrl = '/api/campaign/'+this.campaignId+'/target_calls.json?';
-      if (start) {
-        tableDataUrl += ('&start='+start);
-      }
-      if (end) {
-        tableDataUrl += ('&end='+end);
-      }
+      if (this.campaignId) {
+        // table data for calls per target
+        var tableDataUrl = '/api/campaign/'+this.campaignId+'/target_calls.json?';
+        if (start) {
+          tableDataUrl += ('&start='+start);
+        }
+        if (end) {
+          tableDataUrl += ('&end='+end);
+        }
 
-      $('table#target_data').html('loading');
-      $.getJSON(tableDataUrl, function(data) {
-        var content = self.targetDataTemplate(data);
-        $('table#target_data').html(content);
-        $('#target_counts').show();
-      });
-    }
+        $('table#table_data').html('<span class="glyphicon glyphicon-refresh spin"></span> Loading...');
+        $('#table_display').show();
+        $.getJSON(tableDataUrl).success(function(data) {
+          var content = self.targetDataTemplate(data.objects);
+          return $('table#table_data').html(content).promise();
+        }).then(function() {
+          return $('table#table_data').tablesorter({
+            theme: "bootstrap",
+            headerTemplate: '{content} {icon}',
+            headers: {
+              1: {
+                sorter:'lastname'
+              }
+            },
+            sortList: [[3,1]],
+            sortInitialOrder: "asc",
+            widgets: [ "uitheme", "columns", "zebra", "output"],
+            widgetOptions: {
+              zebra : ["even", "odd"],
+              output_delivery: 'download',
+              output_saveFileName: 'callpower-export.csv'
+            }
+          }).promise();
+        }).then(function() {
+          $('.btn.download').show();
+          // don't know why this is necessary, but it appears to be
+          setTimeout(function() {
+            $('table#table_data').trigger("updateAll");
+          }, 10);
+        });
+      } else {
+        $('#table_display').hide();
+      }
+    },
 
+    downloadTable: function(event) {
+      console.log('download!');
+      $('table#table_data').trigger('outputTable');
+    },
   });
-
 })();
