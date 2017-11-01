@@ -1,8 +1,9 @@
 import os
 import logging
 import glob
+import urlparse
 
-from flask import Flask, g, request, session
+from flask import Flask, g, request, session, render_template
 from flask_assets import Bundle
 
 from utils import json_markup, OrderedDictYAMLLoader
@@ -16,10 +17,12 @@ from .admin import admin
 from .user import User, user
 from .call import call
 from .campaign import campaign
+from .schedule import schedule
 from .api import api, configure_restless, restless_preprocessors
 from .political_data import political_data
 
-from extensions import cache, db, babel, assets, login_manager, csrf, mail, store, rest
+from extensions import (cache, db, babel, assets, login_manager, 
+    csrf, mail, store, rest, rq, talisman, CALLPOWER_CSP, limiter)
 
 DEFAULT_BLUEPRINTS = (
     site,
@@ -27,6 +30,7 @@ DEFAULT_BLUEPRINTS = (
     user,
     call,
     campaign,
+    schedule,
     api,
     political_data
 )
@@ -43,15 +47,33 @@ def create_app(configuration=None, app_name=None, blueprints=None):
     app = Flask(app_name)
     # configure app from object or environment
     configure_app(app, configuration)
+        
+    # set production security headers
     if app.config['ENVIRONMENT'] == "Production":
-        from flask_sslify import SSLify
-        SSLify(app)
+        # append media-src to include flask-store domain
+        store_domain = urlparse.urlparse(app.config['STORE_DOMAIN']).netloc,
+        CALLPOWER_CSP['media-src'].extend(store_domain)
+        talisman.init_app(app,
+            force_https=True,
+            content_security_policy=CALLPOWER_CSP
+        )
+
+    if app.config.get('SENTRY_DSN'):
+        from raven.contrib.flask import Sentry
+        sentry = Sentry()
+        sentry.init_app(app, dsn=app.config['SENTRY_DSN'])
+        sentry_report_uri = 'https://sentry.io/api/%s/csp-report/?sentry_key=%s' % (
+            sentry.client.remote.project, sentry.client.remote.public_key
+        )
+        talisman.content_security_policy_report_uri = sentry_report_uri
+
     # init extensions once we have app context
     init_extensions(app)
     # then blueprints, for url/view routing
     register_blueprints(app, blueprints)
 
     configure_logging(app)
+    configure_error_pages(app)
 
     # then extension specific configurations
     configure_babel(app)
@@ -104,10 +126,16 @@ def init_extensions(app):
     csrf.init_app(app)
     mail.init_app(app)
     login_manager.init_app(app)
+    rq.init_app(app)
+    app.rq = rq
     store.init_app(app)
     rest.init_app(app, flask_sqlalchemy_db=db,
                   preprocessors=restless_preprocessors)
     rest.app = app
+
+    limiter.init_app(app)
+    for handler in app.logger.handlers:
+        limiter.logger.addHandler(handler)
 
     if app.config.get('DEBUG'):
         from flask_debugtoolbar import DebugToolbarExtension
@@ -224,6 +252,10 @@ def context_processors(app):
             version = os.environ.get('HEROKU_SLUG_DESCRIPTION')
         return {'version': version}
 
+    @app.context_processor
+    def inject_admin_email():
+        return dict(ADMIN_EMAIL=app.config.get('MAIL_DEFAULT_SENDER', 'info@callpower.org'))
+
     # json filter
     app.jinja_env.filters['json'] = json_markup
     app.jinja_env.add_extension('call_server.jinja.SelectiveHTMLCompress')
@@ -250,3 +282,11 @@ def configure_logging(app):
     
     if app.config.get('OUTPUT_LOG'):
         app.logger.addHandler(logging.StreamHandler())
+
+def configure_error_pages(app):
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('site/404.html'), 404
+    @app.errorhandler(500)
+    def application_error(e):
+        return render_template('site/500.html'), 500

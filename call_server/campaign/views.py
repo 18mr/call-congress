@@ -20,6 +20,7 @@ from .models import (Campaign, Target, CampaignTarget,
                      AudioRecording, CampaignAudioRecording,
                      TwilioPhoneNumber)
 from ..call.models import Call
+from ..schedule.models import ScheduleCall
 from .forms import (CountryTypeForm, CampaignForm, CampaignAudioForm,
                     AudioRecordingForm, CampaignLaunchForm,
                     CampaignStatusForm, TargetForm)
@@ -137,6 +138,7 @@ def form(country_code=None, campaign_type=None, campaign_id=None, campaign_langu
     if campaign.include_special:
         form.show_special.data = True
 
+    form._obj = campaign # needed for uniqueness validator
     if form.validate_on_submit():
         # can't use populate_obj with nested forms, iterate over fields manually
         for field in form:
@@ -207,7 +209,6 @@ def copy(campaign_id):
     # duplicate_object skips sets
     # recreate m2m objects manually
     if orig_campaign.target_set:
-
         for target in orig_campaign.target_set:
             # update or create CampaignTarget membership
             try:
@@ -221,6 +222,16 @@ def copy(campaign_id):
         new_campaign.target_set = orig_campaign.target_set
         db.session.add(new_campaign)
         db.session.commit()
+
+    # loop over selected audio recordings for the original campaign
+    for audio_recording in orig_campaign._audio_query():
+        # create new ones for the new campaign
+        new_audio_recording = CampaignAudioRecording()
+        new_audio_recording.campaign = new_campaign
+        new_audio_recording.recording = audio_recording.recording
+        new_audio_recording.selected = True
+        db.session.add(new_audio_recording)
+    db.session.commit()
 
     flash('Campaign copied.', 'success')
     return redirect(url_for('campaign.form', campaign_id=new_campaign.id))
@@ -279,6 +290,7 @@ def upload_recording(campaign_id):
         if file_storage:
             file_storage.filename = "campaign_{}_{}_{}.{}".format(campaign.id, message_key, recording.version, file_type)
             recording.file_storage = file_storage
+            recording.text_to_speech = ''
         else:
             # dummy file storage
             recording.file_storage = TemporaryStore('')
@@ -432,8 +444,18 @@ def launch(campaign_id):
             if campaign.embed.get('script'):
                 form.embed_script.data = campaign.embed.get('script')
 
+    if campaign.prompt_schedule:
+        campaign_scheduled = {
+            'subscribers': campaign.scheduled_calls_subscribers().count(),
+            'calls': campaign.scheduled_calls_subscribers().with_entities(func.sum(ScheduleCall.num_calls)).scalar() or 0
+        }
+    else:
+        campaign_scheduled = None
+
     return render_template('campaign/launch.html', campaign=campaign,
-        campaign_data=campaign.get_campaign_data(), form=form,
+        campaign_data=campaign.get_campaign_data(),
+        campaign_scheduled=campaign_scheduled,
+        form=form,
         descriptions=current_app.config.CAMPAIGN_FIELD_DESCRIPTIONS)
 
 
@@ -443,12 +465,25 @@ def status(campaign_id):
     form = CampaignStatusForm(obj=campaign)
 
     if form.validate_on_submit():
-        form.populate_obj(campaign)
-
+        form.populate_obj(campaign)        
         db.session.add(campaign)
         db.session.commit()
 
-        flash('Campaign status updated.', 'success')
+        if campaign.status == 'paused':
+            # unsubscribe outgoing recurring calls
+            scheduled_calls = ScheduleCall.query.filter_by(campaign=campaign)
+            for sc in scheduled_calls:
+                sc.stop_job()
+                db.session.add(sc)
+            db.session.commit()
+            flash('Campaign paused. No more scheduled calls will go out.', 'warning')
+        elif campaign.status == 'archived':
+            # release twilio numbers
+            campaign.phone_number_set = []
+            flash('Campaign archived. Incoming calls will not connect.', 'danger')
+        else:
+            flash('Campaign status updated.', 'success')
+
         return redirect(url_for('campaign.index'))
 
     return render_template('campaign/status.html', campaign=campaign, form=form)
