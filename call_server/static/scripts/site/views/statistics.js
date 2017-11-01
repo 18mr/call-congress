@@ -22,15 +22,16 @@
       this.$el.on('changeDate', _.debounce(this.renderChart, this));
 
       this.chartOpts = {
-        stacked: true,
-        discrete: true,
         library: {
           canvasDimensions:{ height:250},
           xAxis: {
             type: 'datetime',
             dateTimeLabelFormats: {
-                day: '%e. %b'
-            }
+                day: '%b %e',
+                week: '%b %e',
+                month: '%b %y',
+                year: '%Y',
+            },
           },
           yAxis: { allowDecimals: false, min: null },
         }
@@ -115,9 +116,42 @@
           var s = _.map(data, function(value, date) {
             return [date, value[status]];
           });
-          return {'name': status, 'data': s };
-        });
-        self.chart = new Chartkick.ColumnChart('calls_for_campaign', series, self.chartOpts);
+          // chart as stacked columns
+          var chartOpts = _.extend(self.chartOpts, {stacked: true});
+          self.chart = new Chartkick.ColumnChart('chart_display', series, chartOpts);
+        } else {
+          // all calls for timespan
+          // get campaigns.json to match series labels
+          $.getJSON('/api/campaigns.json', function(campaigns) {
+            series = _.map(campaigns.objects, function(campaign_name, campaign_id) {
+              var s = _.map(data.objects, function(value, date) {
+                if (value[campaign_id]) {
+                  return [date, value[campaign_id]];
+                }
+              });
+              // compact to remove falsy values
+              return {'name': campaign_name, 'data': _.compact(s) };
+            });
+            // filter out series that have no data
+            var seriesFiltered = _.filter(series, function(line) {
+              return line.data.length
+            });
+
+            if (seriesFiltered.length) {
+              // chart as curved lines
+              var chartOpts = _.extend(self.chartOpts, {curve: true});
+              self.chart = new Chartkick.LineChart('chart_display', seriesFiltered, chartOpts);
+            } else {
+              $('#chart_display').html('no data to display. adjust dates or campaigns');
+            }
+
+            if (data.meta) {
+              $('#summary_data').html(
+                self.summaryDataTemplate(data.meta)
+              ).show();
+            }
+          });
+        }
       });
 
       if (this.campaignId) {
@@ -135,6 +169,8 @@
         $.getJSON(tableDataUrl).success(function(data) {
           var content = self.targetDataTemplate(data.objects);
           return $('table#table_data').html(content).promise();
+        }).error(function() {
+          $('table#table_data').html('<span class="glyphicon glyphicon-exclamation-sign error"></span> Error loading table');
         }).then(function() {
           return $('table#table_data').tablesorter({
             theme: "bootstrap",
@@ -144,7 +180,7 @@
                 sorter:'lastname'
               }
             },
-            sortList: [[3,1]],
+            sortList: [[3,1], [1, 0]],
             sortInitialOrder: "asc",
             widgets: [ "uitheme", "columns", "zebra", "output"],
             widgetOptions: {
@@ -166,7 +202,6 @@
     },
 
     downloadTable: function(event) {
-      console.log('download!');
       $('table#table_data').trigger('outputTable');
     },
   });

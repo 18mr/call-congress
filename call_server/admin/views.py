@@ -1,17 +1,21 @@
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, current_app, flash, url_for, redirect
-from flask_login import login_required
+from flask import Blueprint, render_template, current_app, flash, url_for, redirect, request
+from flask_login import login_required, current_user
 from flask_babel import gettext as _
 
 from ..extensions import db, cache
 from sqlalchemy.sql import func, desc
+
+from .models import Blocklist
+from .forms import BlocklistForm
 
 from ..campaign.models import TwilioPhoneNumber, Campaign
 from ..call.models import Call
 from ..campaign.constants import STATUS_PAUSED
 from ..api.constants import API_TIMESPANS
 from ..utils import get_one_or_create
+from ..user.models import User
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -96,6 +100,7 @@ def system():
     twilio_account = current_app.config.get('TWILIO_CLIENT').auth[0]
     political_data_cache = {'US': cache.get('political_data:us'),
                             'CA': cache.get('political_data:ca')}
+    blocked = Blocklist.query.order_by(Blocklist.timestamp.desc()).all()
     if not political_data_cache['US']:
         flash(_("US Political Data not yet loaded. Run > python manager.py loadpoliticaldata") , 'warning')
     return render_template('admin/system.html',
@@ -103,8 +108,45 @@ def system():
                            twilio_numbers=twilio_numbers,
                            twilio_account=twilio_account,
                            admin_api_key=admin_api_key,
-                           political_data_cache=political_data_cache)
+                           political_data_cache=political_data_cache,
+                           blocked=blocked)
 
+
+@admin.route('/system/blocklist/create', methods=['GET', 'POST'])
+@admin.route('/system/blocklist/<int:blocklist_id>/edit', methods=['GET', 'POST'])
+def blocklist(blocklist_id=None):
+    edit = False
+    if blocklist_id:
+        edit = True
+
+    if edit:
+        blocklist = Blocklist.query.filter_by(id=blocklist_id).first_or_404()
+    else:
+        blocklist = Blocklist()
+
+    form = BlocklistForm()
+    
+    if form.validate_on_submit():
+        form.populate_obj(blocklist)
+
+        db.session.add(blocklist)
+        db.session.commit()
+
+        flash('Blocklist updated.', 'success')
+        return redirect(url_for('admin.system'))
+
+    return render_template('admin/blocklist.html', blocklist=blocklist, form=form)
+
+
+# for flask-limit exempt-when
+# called with request context
+def admin_phone():
+    if current_user.is_authenticated():
+        return True
+
+    # if calling from embedded website, check list of admin users
+    phone = request.values.get('userPhone')
+    return User.query.filter_by(phone=phone).count()
 
 @admin.route('/twilio/resync', methods=['POST'])
 def twilio_resync():

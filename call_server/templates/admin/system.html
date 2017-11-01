@@ -27,15 +27,26 @@
         <thead>
             <tr>
                 <th>{{ _('Number') }}</th>
-                <th>{{ _('Campaign') }}</th>
-                <th>{{ _('Dial In') }}</th>
+                <th>{{ _('Info') }}</th>
             </tr>
         </thead>
         {% for p in twilio_numbers %}
         <tr>
             <td>{{ p.number.international }} </td>
-            <td>{% for c in p.campaigns %}{{c.name}}{%if not loop.last%}, {%endif%}{%endfor%}</td>
-            <td>{% for c in p.campaigns%}{{c.allow_call_in }}{%if not loop.last%}, {%endif%}{%endfor%}</td>
+            <td>
+                <table>
+                    <thead>
+                        <th>{{ _('Campaign') }}</th>
+                        <th>{{ _('Dial In') }}</th>
+                    </thead>
+                    {% for c in p.campaigns %}
+                    <tr>
+                        <td>{{c.name}}</td>
+                        <td>{% if c.allow_call_in %}<i class="glyphicon glyphicon-check"></i>{%endif%}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -46,23 +57,28 @@
     </form>
     </fieldset>
 
-
     <fieldset class="border">
-    <legend>Default Messages</legend>
+    <legend>Blocklist</legend>
+    <div class="pull-right">
+        <a class="btn btn-success" href="{{ url_for('admin.blocklist') }}"><strong>{{ _('Add') }} +</strong></a>
+    </div>
     <table class='table table-bordered table-hover'>
         <thead>
             <tr>
-                <th>{{ _('Type') }}</th>
-                <th>{{ _('Message') }}</th>
+                <th>{{ _('Timestamp') }}</th>
+                <th>{{ _('Phone or IP') }}</th>
+                <th>{{ _('Expires') }}</th>
+                <th>{{ _('Hits') }}</th>
             </tr>
-        {% for msg_key,msg_text in message_defaults.items() %}
-            <tr>
-                <td>{{msg_key}}</td>
-                <td>{{msg_text}}</td>
+        {% for item in blocked %}
+            <tr class="{% if not item.is_active() %}active{%endif%}">
+                <td>{{item.timestamp.strftime('%Y-%m-%d %H:%M:%S (%z)')}}</td>
+                <td>{{item}}</td>
+                <td>{%if item.expires%}{{item.expires}}{%else%}Never{%endif%}</td>
+                <td>{{item.hits}}</td>
             </tr>
         {% endfor %}
     </table>
-    <span class="help-block">Edit these defaults in <samp>APPLICATION_ROOT/instance/campaign_msg_defaults.yaml</samp></span>
     </fieldset>
 
     {% if admin_api_key %}
@@ -103,5 +119,24 @@
         {% endif %}
     </table>
     </fieldset>
+
+    <fieldset class="border">
+    <legend>Default Messages</legend>
+    <table class='table table-bordered table-hover'>
+        <thead>
+            <tr>
+                <th>{{ _('Type') }}</th>
+                <th>{{ _('Message') }}</th>
+            </tr>
+        {% for msg_key,msg_text in message_defaults.items() %}
+            <tr>
+                <td>{{msg_key}}</td>
+                <td>{{msg_text}}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    <span class="help-block">Edit these defaults in <samp>APPLICATION_ROOT/instance/campaign_msg_defaults.yaml</samp></span>
+    </fieldset>
+
 </div>
 {% endblock %}

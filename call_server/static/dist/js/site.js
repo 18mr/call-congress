@@ -188,7 +188,7 @@ $(document).ready(function () {
     setupTwilioClient: function(capability) {
       //connect twilio API to read text-to-speech
       try {
-        this.twilio = Twilio.Device.setup(capability, {"debug":false});
+        this.twilio = Twilio.Device.setup(capability, {"debug":CallPower.Config.DEBUG | false});
       } catch (e) {
         console.error(e);
         msg = 'Sorry, your browser does not support WebRTC, Text-to-Speech playback may not work.<br/>' +
@@ -199,20 +199,17 @@ $(document).ready(function () {
 
       this.twilio.incoming(function(connection) {
         connection.accept();
-        // do awesome ui stuff here
-        // $('#call-status').text("you're on a call!");
       });
       this.twilio.error(function(error) {
         console.error(error);
-        var msg = 'Twilio error';
-        var level = 'warning'
-        if (error.info) {
-          msg = msg+': '+error.info.code+' '+error.info.message;
-        } else if (error.message) {
-          msg = msg + ': ' + error.message;
-          level = 'info'; // yes, this is very counterintuitive
+        var message = error.info ? error.info.message : error.message;
+        if (message == "Invalid application SID") {
+          message = message + "<br> Ensure TwiML Application $TWILIO_PLAYBACK_APP will POST to /api/twilio/text-to-speech";
         }
-        window.flashMessage(msg, level);
+        if (error.info) {
+          message = 'Twilio error: '+error.info.code+' '+message;
+        }
+        window.flashMessage(message, 'info');
       });
       this.twilio.connect(function(conn) {
         console.log('Twilio connection', conn.status());
@@ -563,7 +560,7 @@ $(document).ready(function () {
       this.targetListView.loadExistingItems();
 
       $("#phone_number_set").parents(".controls").after(
-        $('<div id="call_in_collisions" class="panel alert-warning col-sm-4 hidden">').append(
+        $('<div id="call_in_collisions" class="alert alert-warning col-sm-4 hidden">').append(
           "<p>This will override call in settings for these campaigns:</p>",
           $("<ul>")
         )
@@ -838,6 +835,13 @@ $(document).ready(function () {
       return !!$('select option:selected', formGroup).length;
     },
 
+    validateCampaignName: function(formGroup) {
+      // trim whitespace
+      var campaignName = $('input[type=text]', formGroup).val().trim();
+      $('input[type=text]', formGroup).val(campaignName);
+      return !campaignName.endsWith('(copy)');
+    },
+
     validateField: function(formGroup, validator, message) {
       // first check to see if formGroup is present
       if (!formGroup.length) {
@@ -866,6 +870,9 @@ $(document).ready(function () {
       // campaign country and type
       isValid = this.validateField($('.form-group.campaign_country'), this.validateSelected, 'Select a country') && isValid;
       isValid = this.validateField($('.form-group.campaign_type'), this.validateNestedSelect, 'Select a type') && isValid;
+
+      // campaign name
+      isValid = this.validateField($('.form-group.name'), this.validateCampaignName, 'Please update the campaign name') && isValid;
 
       // campaign sub-type
       isValid = this.validateField($('.form-group.campaign_subtype'), this.validateState, 'Select a sub-type') && isValid;
@@ -957,14 +964,18 @@ $(document).ready(function () {
           record: record
         },
         success: function(data) {
-          alert('Calling you at '+$('#test_call_number').val()+' now!');
           if (data.call == 'queued') {
+            alert('Calling you at '+$('#test_call_number').val()+' now!');
             statusIcon.removeClass('active').addClass('success');
             $('.form-group.test_call .controls .help-block').removeClass('has-error').text('');
           } else {
             console.error(data);
-            statusIcon.addClass('error');
-            $('.form-group.test_call .controls .help-block').addClass('has-error').text(data.responseText);
+            statusIcon.removeClass('active').addClass('error');
+            var message = "Unable to place call";
+            if (data.campaign == 'archived') {
+              message += ': campaign is archived.'
+            }
+            $('.form-group.test_call .controls .help-block').addClass('has-error').text(message);
           }
         },
         error: function(err) {
@@ -1740,7 +1751,10 @@ $(document).ready(function () {
             office.last_name = person.last_name;
             office.uid = person.uid+(office.id || '');
             office.phone = office.phone || office.tel;
-            office.office_name = office.name || office.city || office.type;
+            var office_name = office.office_name || office.name || office.city || office.type;
+
+            // remove "office" from office_name, we append that in the template
+            office.office_name = office_name.replace(/office/i,'');
             var li = renderTemplate("#search-results-item-tmpl", office);
             dropdownMenu.append(li);
           }
@@ -1804,14 +1818,16 @@ $(document).ready(function () {
       this.$el.on('changeDate', _.debounce(this.renderChart, this));
 
       this.chartOpts = {
-        discrete: true,
         library: {
           canvasDimensions:{ height:250},
           xAxis: {
             type: 'datetime',
             dateTimeLabelFormats: {
-                day: '%e. %b'
-            }
+                day: '%b %e',
+                week: '%b %e',
+                month: '%b %y',
+                year: '%Y',
+            },
           },
           yAxis: { allowDecimals: false, min: null },
         }
@@ -1923,7 +1939,7 @@ $(document).ready(function () {
             // filter out series that have no data
             var seriesFiltered = _.filter(series, function(line) {
               return line.data.length
-            })
+            });
 
             if (seriesFiltered.length) {
               // chart as curved lines
@@ -1957,6 +1973,8 @@ $(document).ready(function () {
         $.getJSON(tableDataUrl).success(function(data) {
           var content = self.targetDataTemplate(data.objects);
           return $('table#table_data').html(content).promise();
+        }).error(function() {
+          $('table#table_data').html('<span class="glyphicon glyphicon-exclamation-sign error"></span> Error loading table');
         }).then(function() {
           return $('table#table_data').tablesorter({
             theme: "bootstrap",
@@ -1966,7 +1984,7 @@ $(document).ready(function () {
                 sorter:'lastname'
               }
             },
-            sortList: [[3,1]],
+            sortList: [[3,1], [1, 0]],
             sortInitialOrder: "asc",
             widgets: [ "uitheme", "columns", "zebra", "output"],
             widgetOptions: {
@@ -1988,7 +2006,6 @@ $(document).ready(function () {
     },
 
     downloadTable: function(event) {
-      console.log('download!');
       $('table#table_data').trigger('outputTable');
     },
   });
@@ -2032,7 +2049,10 @@ $(document).ready(function () {
 
   CallPower.Collections.TargetList = Backbone.Collection.extend({
     model: CallPower.Models.Target,
-    comparator: 'order'
+    comparator: function( model ) {
+      // have to coerce to integer, because otherwise it will sort lexicographically
+      return parseInt(model.get('order'));
+    }
   });
 
   CallPower.Views.TargetItemView = Backbone.View.extend({
@@ -2467,6 +2487,12 @@ $(document).ready(function () {
               var msg = response.message + ': '+ fieldDescription + ' version ' + response.version;
               // and display to user
               window.flashMessage(msg, 'success');
+
+              // update parent form-group status and description
+              var parentFormGroup = $('.form-group.'+response.key);
+              parentFormGroup.addClass('valid');
+              parentFormGroup.find('.input-group .help-block').text('');
+              parentFormGroup.find('.description .status').addClass('glyphicon-check');
 
               // close the modal, and cleanup subviews
               if (hideOnComplete) {

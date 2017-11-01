@@ -3,6 +3,8 @@ from flask import current_app, flash
 
 import itertools
 import json
+import pytz
+import unicodedata
 import yaml
 import yaml.constructor
 
@@ -89,6 +91,22 @@ def json_markup(obj):
     return Markup(json.dumps(obj))
 
 
+def utc_now():
+    naive = datetime.utcnow()
+    aware = naive.replace(tzinfo=pytz.utc)
+    return aware
+
+
+def ignore_accents(string):
+    if type(string) == str:
+        string = unicode(string, 'utf-8')
+    elif type(string) == unicode:
+        string = string
+    else:
+        raise ValueError('not a string or unicode')
+    return unicodedata.normalize('NFD', string).encode('ascii', 'ignore')
+
+
 class OrderedDictYAMLLoader(yaml.Loader):
     """
     A YAML loader that loads mappings into ordered dictionaries.
@@ -126,15 +144,3 @@ class OrderedDictYAMLLoader(yaml.Loader):
             value = self.construct_object(value_node, deep=deep)
             mapping[key] = value
         return mapping
-
-
-def median(l):
-    srt = sorted(l)
-    mid = len(l) // 2
-    if len(l) < 1:
-        return None
-    if len(l) % 2:  # f list length mod 2 has a remainder the list is an odd length
-        return srt[mid]
-    else:
-        med = (srt[mid] + srt[mid - 1]) / 2  # in a list [1,2,3,4] srt[mid]-> 2, srt[mid-1] -> 3
-        return med

@@ -8,6 +8,7 @@ from wtforms.ext.sqlalchemy.fields import QuerySelectField, QuerySelectMultipleF
 from wtforms_components import PhoneNumberField, IntegerField, read_only
 from wtforms.widgets import TextArea, Input
 from wtforms.validators import Required, Optional, AnyOf, NumberRange, ValidationError
+from wtforms_components.validators import Unique
 
 from .constants import (SEGMENT_BY_CHOICES, LOCATION_CHOICES, INCLUDE_SPECIAL_CHOCIES, TARGET_OFFICE_CHOICES, LANGUAGE_CHOICES,
                         CAMPAIGN_STATUS, EMBED_FORM_CHOICES, EMBED_SCRIPT_DISPLAY)
@@ -41,7 +42,7 @@ class TargetForm(FlaskForm):
 
 class CampaignForm(FlaskForm):
     next = HiddenField()
-    name = TextField(_('Campaign Name'), [Required()])
+    name = TextField(_('Campaign Name'), [Required(), Unique(Campaign.name, message="Campaign with that name already exists")])
     campaign_country = DisabledSelectField(_('Country'), [Optional()], choices=COUNTRY_CHOICES)
     campaign_type = DisabledSelectField(_('Type'), [Optional()])
     campaign_state = SelectField(_('State'), [Optional()])
@@ -65,8 +66,10 @@ class CampaignForm(FlaskForm):
 
     phone_number_set = QuerySelectMultipleField(_('Select Phone Numbers'),
                                                 query_factory=TwilioPhoneNumber.available_numbers,
-                                                validators=[Required()])
+                                                description=True, validators=[Required()])
     allow_call_in = BooleanField(_('Allow Call In'))
+    allow_intl_calls = BooleanField(_('Allow International Calls'))
+    prompt_schedule = BooleanField(_('Prompt to Schedule Recurring Calls'))
 
     submit = SubmitField(_('Edit Audio'))
     submit_skip_audio = SubmitField(_('Save and Test'))
@@ -106,11 +109,16 @@ class CampaignAudioForm(FlaskForm):
     msg_invalid_location = TextField(_('Invalid Location'))
     msg_unparsed_location = TextField(_('Unparsed Location'))
     msg_choose_target = TextField(_('Choose Target'))
+    msg_prompt_schedule = TextField(_('Prompt to Schedule'))
+    msg_alter_schedule = TextField(_('Alter Existing Schedule'))
+    msg_schedule_start = TextField(_('Schedule Started'))
+    msg_schedule_stop = TextField(_('Schedule Stopped'))
     msg_call_block_intro = TextField(_('Call Block Introduction'))
     msg_target_intro = TextField(_('Target Introduction'))
     msg_target_busy = TextField(_('Target Busy'))
     msg_between_calls = TextField(_('Between Calls'))
     msg_final_thanks = TextField(_('Final Thanks'))
+    msg_campaign_complete = TextField(_('Campaign Complete'))
 
     submit = SubmitField(_('Save and Test'))
 
