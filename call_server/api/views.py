@@ -17,6 +17,7 @@ from ..extensions import csrf, rest, db, cache, talisman, CALLPOWER_CSP
 from ..campaign.models import Campaign, Target, AudioRecording
 from ..political_data.adapters import adapt_by_key, UnitedStatesData
 from ..call.models import Call, Session
+from ..schedule.models import ScheduleCall
 from ..call.constants import TWILIO_CALL_STATUS
 
 
@@ -38,6 +39,9 @@ def configure_restless(app):
                     include_columns=['id', 'timestamp', 'campaign_id', 'target_id',
                                     'call_id', 'status', 'duration'],
                     include_methods=['target_display'])
+    rest.create_api(ScheduleCall, collection_name='schedule', methods=['GET'],
+                    include_columns=['id', 'created_at', 'subscribed', 'phone_number',
+                                    'campaign_id', 'time_to_call', 'last_called', 'num_calls'])
     rest.create_api(Campaign, collection_name='campaign', methods=['GET'],
                     include_columns=['id', 'name', 'campaign_type', 'campaign_state', 'campaign_subtype',
                                      'target_ordering', 'allow_call_in', 'call_maximum', 'embed'],

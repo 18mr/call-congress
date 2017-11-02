@@ -1,4 +1,5 @@
-from flask import (Blueprint, current_app, request, url_for, jsonify)
+from flask import (Blueprint, current_app, request, url_for, jsonify, make_response)
+from flask_login import login_required
 from blinker import Namespace
 
 from .models import ScheduleCall
@@ -13,6 +14,12 @@ csrf.exempt(schedule)
 namespace = Namespace()
 schedule_created = namespace.signal('schedule_created')
 schedule_deleted = namespace.signal('schedule_deleted')
+
+@schedule.before_request
+@login_required
+def before_request():
+    # all schedule routes require login
+    pass
 
 ####
 # CRUD
@@ -44,10 +51,14 @@ schedule_created.connect(_create, ScheduleCall)
 def delete(campaign_id, phone):
     campaign = Campaign.query.filter_by(id=campaign_id).first_or_404()
     if _delete(ScheduleCall, campaign.id, phone):
-        return jsonify('gone')
+        return make_response(jsonify({'status': 'deleted'}), 200)
+    else:
+        return make_response(jsonify({'status': 'nope'}), 404)
 
 def _delete(cls, campaign_id, phone):
-    schedule_call = ScheduleCall.query.filter_by(campaign_id=campaign_id, phone_number=phone).first_or_404()
+    schedule_call = ScheduleCall.query.filter_by(campaign_id=campaign_id, phone_number=phone).first()
+    if not schedule_call:
+        return False
     schedule_call.stop_job()
     # don't actually delete the object, keep it for stats
     db.session.add(schedule_call)

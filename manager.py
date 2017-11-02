@@ -66,6 +66,26 @@ def loadpoliticaldata():
         n = political_data.load_data(cache)
     log.info("done loading %d objects" % n)
 
+@manager.command
+def stop_scheduled_calls(campaign_id, date):
+    # unsubscribe outgoing recurring calls created before date
+    from datetime import datetime
+    from call_server.campaign import Campaign
+    from call_server.schedule import ScheduleCall
+    before_date = datetime.strptime(date, '%Y-%m-%d')
+    campaign = Campaign.query.get(campaign_id)
+    scheduled_calls = ScheduleCall.query.filter(campaign==campaign, ScheduleCall.created_at <= before_date).all()
+    print 'This will stop all {} scheduled calls for campaign {} created before {}'.format(len(scheduled_calls), campaign.name, date)
+    confirm = raw_input('Confirm (Y/N): ')
+    if confirm == 'Y':
+        for sc in scheduled_calls:
+            print "canceling job", sc.job_id
+            sc.stop_job()
+            db.session.add(sc)
+        db.session.commit()
+        print "done"
+    else:
+        print "exit"
 
 @manager.command
 def redis_clear():

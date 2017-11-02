@@ -285,6 +285,7 @@
       }, 'Uploaded file must be an MP3 or WAV. M4A or iPhone Voice Memos will not play back.') && isValid;
 
       isValid = this.validateField($('.tab-pane.active#text-to-speech'), function() {
+        self.validateTextToSpeech();
         return !!self.textToSpeech;
       }, 'Please enter text to read') && isValid;
 

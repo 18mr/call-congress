@@ -498,3 +498,14 @@ def calls(campaign_id):
     end = request.args.get("end") or (start + datetime.timedelta(days=1))
 
     return render_template('campaign/calls.html', campaign=campaign, start=start, end=end)
+
+
+@campaign.route('/<int:campaign_id>/schedule', methods=['GET'])
+def schedule(campaign_id):
+    campaign = Campaign.query.filter_by(id=campaign_id).first_or_404()
+    # call lookup handled via api ajax to /api/schedule
+
+    start = request.args.get("start") or datetime.date.today()
+    end = request.args.get("end") or (start + datetime.timedelta(days=1))
+
+    return render_template('campaign/schedule.html', campaign=campaign, start=start, end=end)
